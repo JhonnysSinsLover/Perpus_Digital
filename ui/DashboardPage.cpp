@@ -5,13 +5,13 @@
 #include <QHeaderView>
 #include <set>
 #include <map>
-#include <QGraphicsDropShadowEffect> // Opsional jika ingin bayangan
+#include <QGraphicsDropShadowEffect> 
 
 DashboardPage::DashboardPage(QWidget *parent)
     : QWidget(parent)
 {
     setupUI();
-    // updateDashboard dipanggil di akhir agar UI siap dulu
+    // Update data di akhir agar UI siap dulu
     updateDashboard(); 
 }
 
@@ -29,26 +29,26 @@ void DashboardPage::setupUI()
     // 2. Header Section (Fixed Top)
     createHeaderSection(mainLayout);
     
-    // 3. Scroll Area (Untuk konten dashboard yang panjang)
+    // 3. Scroll Area 
     QScrollArea* scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     
-    // Styling Scrollbar agar tidak terlihat 'kuno'
+    // Styling Scrollbar agar menyatu dengan background
     scrollArea->setStyleSheet(
-        "QScrollArea { background-color: #F4F7FE; border: none; }" // Background utama Light Blue-Grey
+        "QScrollArea { background-color: #F4F7FE; border: none; }" 
         "QScrollBar:vertical { border: none; background: #F4F7FE; width: 8px; margin: 0px; }"
         "QScrollBar::handle:vertical { background: #C4CDD5; min-height: 20px; border-radius: 4px; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
     );
     
-    // 4. Content Widget (Inside Scroll Area)
+    // 4. Content Widget
     QWidget* contentWidget = new QWidget();
-    contentWidget->setStyleSheet("background-color: #F4F7FE;"); // Samakan dengan scroll area
+    contentWidget->setStyleSheet("background-color: #F4F7FE;"); 
     
     QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
-    contentLayout->setContentsMargins(30, 30, 30, 30); // Margin lebih lega
-    contentLayout->setSpacing(25); // Jarak antar section lebih lebar
+    contentLayout->setContentsMargins(30, 30, 30, 30); // Margin lega
+    contentLayout->setSpacing(30); // Jarak antar section
     
     // --- Dashboard Content Sections ---
     
@@ -58,7 +58,7 @@ void DashboardPage::setupUI()
     // B. Recent Books Table
     createRecentBooksTable(contentLayout);
     
-    // Spacer di bawah agar layout tidak 'stretching' paksa
+    // Spacer di bawah
     contentLayout->addStretch();
     
     scrollArea->setWidget(contentWidget);
@@ -70,37 +70,37 @@ void DashboardPage::createHeaderSection(QVBoxLayout* mainLayout)
     QFrame* headerFrame = new QFrame(this);
     headerFrame->setStyleSheet(
         "QFrame {"
-        "   background-color: white;" // Header putih bersih
-        "   border-bottom: 1px solid #E0E5F2;" // Garis pemisah tipis
+        "   background-color: white;" 
+        "   border-bottom: 1px solid #E0E5F2;" 
         "}"
     );
-    headerFrame->setFixedHeight(80);
+    headerFrame->setFixedHeight(80); // Tinggi header disamakan
     
     QHBoxLayout* headerLayout = new QHBoxLayout(headerFrame);
     headerLayout->setContentsMargins(30, 0, 30, 0);
     headerLayout->setSpacing(20);
     
-    // Title "Dashboard"
+    // Title
     QLabel* titleLabel = new QLabel("Dashboard", headerFrame);
-    titleLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 26px; font-weight: 700; color: #2B3674;");
+    titleLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 26px; font-weight: 700; color: #2B3674; border: none;");
     headerLayout->addWidget(titleLabel);
     
-    headerLayout->addStretch(); // Spacer tengah
+    headerLayout->addStretch(); 
     
-    // Search Bar
+    // Search Bar (Visual Only for Dashboard)
     m_searchBar = new QLineEdit(headerFrame);
     m_searchBar->setPlaceholderText("Search...");
     m_searchBar->setFixedSize(300, 45);
     m_searchBar->setStyleSheet(
         "QLineEdit {"
-        "   background-color: #F4F7FE;" // Abu sangat muda
+        "   background-color: #F4F7FE;"
         "   border: none;"
-        "   border-radius: 22px;" // Rounded pill shape
+        "   border-radius: 22px;" 
         "   padding-left: 20px;"
         "   font-size: 14px;"
         "   color: #2B3674;"
         "}"
-        "QLineEdit:focus { background-color: #EAEFFC; }"
+        "QLineEdit:focus { background-color: #EAEFFC; border: 1px solid #4318FF; }"
     );
     headerLayout->addWidget(m_searchBar);
     
@@ -110,17 +110,15 @@ void DashboardPage::createHeaderSection(QVBoxLayout* mainLayout)
     m_notificationBtn->setCursor(Qt::PointingHandCursor);
     m_notificationBtn->setStyleSheet(
         "QPushButton { border: none; background: transparent; font-size: 20px; color: #A3AED0; }"
-        "QPushButton:hover { color: #2B3674; }"
+        "QPushButton:hover { color: #4318FF; background-color: #F4F7FE; border-radius: 22px; }"
     );
     headerLayout->addWidget(m_notificationBtn);
     
     // Profile Button
-    m_profileBtn = new QPushButton("👤", headerFrame);
-    m_profileBtn->setFixedSize(45, 45);
-    m_profileBtn->setCursor(Qt::PointingHandCursor);
+    m_profileBtn = new QPushButton("Admin", headerFrame);
+    m_profileBtn->setFixedSize(80, 34);
     m_profileBtn->setStyleSheet(
-        "QPushButton { background-color: #112D4E; border: none; border-radius: 22px; font-size: 20px; color: white; }"
-        "QPushButton:hover { background-color: #2B3674; }"
+        "QPushButton { background-color: #1E293B; color: white; border-radius: 17px; font-weight: 600; border: none; }"
     );
     headerLayout->addWidget(m_profileBtn);
     
@@ -129,16 +127,17 @@ void DashboardPage::createHeaderSection(QVBoxLayout* mainLayout)
 
 void DashboardPage::createStatCards(QVBoxLayout* mainLayout)
 {
+    // Menggunakan Layout Horizontal dengan logika Stretch agar memenuhi lebar layar
     QHBoxLayout* statsLayout = new QHBoxLayout();
-    statsLayout->setSpacing(20); // Jarak antar kartu
+    statsLayout->setSpacing(20); 
 
     // Helper: Title, Value, Icon, IconBgColor, showTrend
-    // Menggunakan warna background icon yang berbeda untuk visual yang menarik
     QWidget* card1 = createCompactStatCard("Total Buku", "0", "📚", "#EAEFFC", true); // Biru muda
     QWidget* card2 = createCompactStatCard("Total Penulis", "0", "✍️", "#FFF7E7", false); // Oranye muda
     QWidget* card3 = createCompactStatCard("Total Genre", "0", "🎭", "#FEEFEF", false); // Merah muda
     QWidget* card4 = createCompactStatCard("Rata-rata Rating", "0.0", "⭐", "#F0FDF4", false); // Hijau muda
     
+    // Tambahkan ke layout
     statsLayout->addWidget(card1);
     statsLayout->addWidget(card2);
     statsLayout->addWidget(card3);
@@ -152,11 +151,14 @@ QWidget* DashboardPage::createCompactStatCard(const QString& title, const QStrin
 {
     QFrame* card = new QFrame(this);
     card->setFixedHeight(120);
+    // STRETCH LOGIC: Agar kartu melebar mengisi ruang kosong
+    card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    
     card->setStyleSheet(
         "QFrame {"
         "   background-color: white;"
-        "   border-radius: 20px;" // Sudut sangat membulat (Modern style)
-        "   border: 1px solid white;" // Trick untuk antialiasing border
+        "   border-radius: 16px;" // Radius disamakan dengan style buku
+        "   border: 1px solid #E0E5F2;" // Border halus
         "}"
     );
 
@@ -166,25 +168,24 @@ QWidget* DashboardPage::createCompactStatCard(const QString& title, const QStrin
 
     // 1. Icon Container (Kiri)
     QLabel* iconLabel = new QLabel(icon);
-    iconLabel->setFixedSize(60, 60);
+    iconLabel->setFixedSize(56, 56);
     iconLabel->setAlignment(Qt::AlignCenter);
-    // Dynamic stylesheet untuk background icon
     iconLabel->setStyleSheet(QString(
-        "background-color: %1; border-radius: 30px; font-size: 28px;"
+        "background-color: %1; border-radius: 28px; font-size: 24px; border: none;"
     ).arg(iconColorBg));
     
     layout->addWidget(iconLabel);
 
     // 2. Text Content (Kanan)
     QVBoxLayout* textLayout = new QVBoxLayout();
-    textLayout->setSpacing(2);
+    textLayout->setSpacing(4);
     textLayout->setAlignment(Qt::AlignVCenter);
     
     QLabel* lblTitle = new QLabel(title, card);
-    lblTitle->setStyleSheet("color: #A3AED0; font-size: 14px; font-weight: 500; font-family: 'Segoe UI';");
+    lblTitle->setStyleSheet("color: #A3AED0; font-size: 13px; font-weight: 600; font-family: 'Segoe UI'; border: none;");
     
     QLabel* lblValue = new QLabel(value, card);
-    lblValue->setStyleSheet("color: #2B3674; font-size: 28px; font-weight: 700; font-family: 'Segoe UI';");
+    lblValue->setStyleSheet("color: #2B3674; font-size: 26px; font-weight: 700; font-family: 'Segoe UI'; border: none;");
     
     textLayout->addWidget(lblTitle);
     textLayout->addWidget(lblValue);
@@ -196,86 +197,91 @@ QWidget* DashboardPage::createCompactStatCard(const QString& title, const QStrin
     else if (title == "Rata-rata Rating") m_lblAvgRating = lblValue;
     
     layout->addLayout(textLayout);
-    layout->addStretch();
+    layout->addStretch(); // Push content ke kiri
     
-    // 3. Trend (Optional)
+    // 3. Trend (Optional - Visual Only)
     if (showTrend) {
-        QLabel* trend = new QLabel("📈 +12%", card);
-        trend->setStyleSheet("color: #05CD99; font-size: 12px; font-weight: bold; background: transparent;");
-        layout->addWidget(trend, 0, Qt::AlignTop);
+        QLabel* trend = new QLabel("📈 +2", card);
+        trend->setStyleSheet("color: #05CD99; font-size: 11px; font-weight: bold; background: transparent; border: none;");
+        layout->addWidget(trend, 0, Qt::AlignTop | Qt::AlignRight);
     }
 
     return card;
 }
-
-
-
-
-
-
 
 void DashboardPage::createRecentBooksTable(QVBoxLayout* mainLayout)
 {
     // Container Frame untuk Tabel
     QFrame* tableFrame = new QFrame(this);
     tableFrame->setStyleSheet(
-        "QFrame { background-color: white; border-radius: 20px; }"
+        "QFrame { background-color: white; border-radius: 16px; border: 1px solid #E0E5F2; }"
     );
     QVBoxLayout* tableLayout = new QVBoxLayout(tableFrame);
     tableLayout->setContentsMargins(25, 25, 25, 25);
     
-    // Header Text
+    // Header Text & Action
+    QHBoxLayout* titleLayout = new QHBoxLayout();
     QLabel* tableTitle = new QLabel("Buku Terbaru Ditambahkan", tableFrame);
-    tableTitle->setStyleSheet("color: #2B3674; font-size: 20px; font-weight: 700; font-family: 'Segoe UI'; margin-bottom: 10px;");
-    tableLayout->addWidget(tableTitle);
+    tableTitle->setStyleSheet("color: #2B3674; font-size: 18px; font-weight: 700; font-family: 'Segoe UI'; border: none;");
+    
+    QPushButton* viewAllBtn = new QPushButton("Lihat Semua", tableFrame);
+    viewAllBtn->setCursor(Qt::PointingHandCursor);
+    viewAllBtn->setStyleSheet("QPushButton { color: #4318FF; font-weight: 600; border: none; background: transparent; } QPushButton:hover { text-decoration: underline; }");
+    
+    titleLayout->addWidget(tableTitle);
+    titleLayout->addStretch();
+    titleLayout->addWidget(viewAllBtn);
+    
+    tableLayout->addLayout(titleLayout);
+    tableLayout->addSpacing(10);
     
     // Table Widget Setup
     m_recentBooksTable = new QTableWidget(this);
     m_recentBooksTable->setColumnCount(6);
     m_recentBooksTable->setHorizontalHeaderLabels({"Cover", "Judul Buku", "Penulis", "Kategori", "Tahun", "Status"});
     
-    // --- TABLE STYLESHEET (BAGIAN PALING PENTING) ---
+    // --- TABLE STYLESHEET ---
     m_recentBooksTable->setStyleSheet(
         "QTableWidget {"
         "   background-color: white;"
         "   border: none;"
-        "   gridline-color: transparent;" // Hilangkan garis grid
+        "   gridline-color: transparent;"
         "}"
         "QTableWidget::item {"
-        "   padding: 10px;"
-        "   border-bottom: 1px solid #F4F7FE;" // Garis pemisah antar baris yang halus
+        "   padding-left: 10px; padding-right: 10px;"
+        "   border-bottom: 1px solid #F4F7FE;"
         "   color: #2B3674;"
         "}"
         "QTableWidget::item:selected {"
-        "   background-color: #F4F7FE;" // Warna saat dipilih soft
-        "   color: #2B3674;"
+        "   background-color: #F4F7FE;"
+        "   color: #4318FF;"
         "}"
         "QHeaderView::section {"
         "   background-color: white;"
-        "   color: #A3AED0;" // Warna header abu-abu
+        "   color: #A3AED0;"
         "   font-weight: bold;"
-        "   font-size: 13px;"
+        "   font-size: 12px;"
+        "   text-transform: uppercase;"
         "   border: none;"
-        "   border-bottom: 2px solid #E0E5F2;"
-        "   padding: 10px;"
+        "   border-bottom: 1px solid #E0E5F2;"
+        "   padding: 15px;"
         "   text-align: left;"
         "}"
     );
     
-    // Table Properties
-    m_recentBooksTable->horizontalHeader()->setStretchLastSection(true);
-    m_recentBooksTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch); // Judul stretch
-    m_recentBooksTable->setColumnWidth(0, 80);  // Cover
-    m_recentBooksTable->setColumnWidth(2, 180); // Penulis
-    m_recentBooksTable->setColumnWidth(3, 150); // Kategori
-    m_recentBooksTable->setColumnWidth(4, 80);  // Tahun
-    m_recentBooksTable->setColumnWidth(5, 120); // Status
+    // COLUMN RESIZING: Agar tabel Full Width dan Rapi
+    QHeaderView* header = m_recentBooksTable->horizontalHeader();
+    header->setSectionResizeMode(QHeaderView::Stretch); // Default semua stretch
+    header->setSectionResizeMode(0, QHeaderView::Fixed); header->resizeSection(0, 80); // Cover fixed
+    header->setSectionResizeMode(4, QHeaderView::Fixed); header->resizeSection(4, 80); // Tahun fixed
+    header->setSectionResizeMode(5, QHeaderView::Fixed); header->resizeSection(5, 120); // Status fixed
+    // Judul, Penulis, Kategori akan berbagi sisa ruang
     
     m_recentBooksTable->verticalHeader()->setVisible(false);
     m_recentBooksTable->setSelectionBehavior(QTableWidget::SelectRows);
-    m_recentBooksTable->setFocusPolicy(Qt::NoFocus); // Hilangkan garis putus2 saat klik
+    m_recentBooksTable->setFocusPolicy(Qt::NoFocus);
     m_recentBooksTable->setShowGrid(false);
-    m_recentBooksTable->setMinimumHeight(400); // Tinggi minimal agar tidak gepeng
+    m_recentBooksTable->setMinimumHeight(450); 
 
     tableLayout->addWidget(m_recentBooksTable);
     mainLayout->addWidget(tableFrame);
@@ -283,7 +289,6 @@ void DashboardPage::createRecentBooksTable(QVBoxLayout* mainLayout)
 
 void DashboardPage::updateDashboard()
 {
-    // Logika ini TIDAK DIUBAH, hanya visualisasi item tabelnya
     DatabaseManager& dbManager = DatabaseManager::instance();
     std::vector<Book> books = dbManager.getAllBooks();
     
@@ -311,20 +316,21 @@ void DashboardPage::updateDashboard()
     // Update Table Data
     m_recentBooksTable->setRowCount(0);
     int count = 0;
-    for (auto it = books.rbegin(); it != books.rend() && count < 6; ++it, ++count) {
+    // Ambil maksimal 5 buku terbaru
+    for (auto it = books.rbegin(); it != books.rend() && count < 5; ++it, ++count) {
         int row = m_recentBooksTable->rowCount();
         m_recentBooksTable->insertRow(row);
-        m_recentBooksTable->setRowHeight(row, 80); // Row lebih tinggi agar lega
+        m_recentBooksTable->setRowHeight(row, 70); // Tinggi baris nyaman
         
-        // 1. Cover (Placeholder Modern)
+        // 1. Cover (Placeholder Modern dengan inisial)
         QLabel* coverLabel = new QLabel("📘");
         coverLabel->setAlignment(Qt::AlignCenter);
-        coverLabel->setStyleSheet("font-size: 24px; background-color: #F4F7FE; border-radius: 8px;");
+        coverLabel->setStyleSheet("font-size: 20px; background-color: #F4F7FE; border-radius: 8px; margin: 5px;");
         m_recentBooksTable->setCellWidget(row, 0, coverLabel);
         
         // 2. Title
         QTableWidgetItem* titleItem = new QTableWidgetItem(it->getJudul());
-        titleItem->setFont(QFont("Segoe UI", 11, QFont::Bold));
+        titleItem->setFont(QFont("Segoe UI", 10, QFont::Bold));
         m_recentBooksTable->setItem(row, 1, titleItem);
         
         // 3. Author
@@ -350,20 +356,13 @@ void DashboardPage::updateDashboard()
         
         QLabel* statusLabel = new QLabel("Tersedia");
         statusLabel->setAlignment(Qt::AlignCenter);
-        statusLabel->setFixedSize(90, 30);
-        // Style badge hijau soft
+        statusLabel->setFixedSize(90, 28);
         statusLabel->setStyleSheet(
             "background-color: #05CD99; color: white; "
-            "border-radius: 15px; font-weight: bold; font-size: 11px;"
+            "border-radius: 14px; font-weight: bold; font-size: 11px;"
         );
         statusLayout->addWidget(statusLabel);
         
         m_recentBooksTable->setCellWidget(row, 5, statusWidget);
     }
-}
-
-void DashboardPage::applyStyles()
-{
-    // Fungsi ini dikosongkan karena styles sudah diterapkan inline per komponen
-    // untuk kontrol yang lebih granular.
 }

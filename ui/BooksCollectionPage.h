@@ -11,7 +11,7 @@
 #include <QStackedWidget>
 #include <QFrame>
 #include <QLabel>
-#include <QGraphicsDropShadowEffect>
+#include <QResizeEvent>
 #include "../backend/DatabaseManager.h"
 
 class BooksCollectionPage : public QWidget
@@ -30,60 +30,63 @@ signals:
     void editBookRequested(int bookId);
     void deleteBookRequested(int bookId);
 
+protected:
+    void resizeEvent(QResizeEvent* event) override;
+
 private slots:
     void onSearchTextChanged();
-    void onSearchByGenre();
-    void onSearchByAuthor();
+    void onFilterChanged();
     void onClearSearch();
-    void onSortByTitle();
-    void onSortByYear();
-    void onSortByRating();
-    void onSortByAuthor();
     void onEditBook();
     void onDeleteBook();
     void onUndoDelete();
     void onTableSelectionChanged();
     void onToggleView();
+    
+    // BST Slots
     void onBuildBST();
     void onSearchBST();
 
 private:
     void setupUI();
     void createHeaderSection(QVBoxLayout* mainLayout);
-    void createControlSection(QVBoxLayout* contentLayout);
+    // Toolbar digabung agar rapi di atas
+    void createControlSection(QVBoxLayout* containerLayout); 
+    // Content hanya berisi Buku
     void createContentSection(QVBoxLayout* contentLayout);
-    void createActionSection(QVBoxLayout* contentLayout);
-    
+    // Action Section dipisah agar jadi Sticky Footer
+    void createActionSection(QVBoxLayout* mainLayout); 
+
     // Helpers
     QFrame* createCardFrame();
-    
     void loadBooksToTable(const std::vector<Book>& books);
     void loadBooksToCards(const std::vector<Book>& books);
     void populateGenreComboBox();
-    
+
+    // Data Cache
+    std::vector<Book> m_currentBooks; 
+
     // UI Elements
     QTableWidget* m_tableBooks;
-    QScrollArea* m_cardScrollArea;
+    QScrollArea* m_contentScrollArea;
     QWidget* m_cardContainer;
     QGridLayout* m_cardLayout;
-    
+    QStackedWidget* m_viewStack;
+
+    // Controls
     QLineEdit* m_searchBox;
     QComboBox* m_genreCombo;
-    QLineEdit* m_authorSearch;
-    
+    QComboBox* m_sortCombo;
+    QLineEdit* m_bstSearchBox; // Input untuk BST
+
+    // Buttons
     QPushButton* m_btnEditBook;
     QPushButton* m_btnDeleteBook;
     QPushButton* m_btnUndoDelete;
     QPushButton* m_btnToggleView;
     QPushButton* m_btnBuildBST;
-    QPushButton* m_btnSearchBST;
-    QStackedWidget* m_viewStack;
-    QLineEdit* m_bstSearchBox;
-    
-    // View state
+
     bool m_isCardView;
-    bool m_sortAscending;
-    QString m_lastSortColumn;
 };
 
 #endif // BOOKSCOLLECTIONPAGE_H
