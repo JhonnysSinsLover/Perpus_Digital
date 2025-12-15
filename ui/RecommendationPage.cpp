@@ -17,8 +17,14 @@ RecommendationPage::RecommendationPage(Graph* genreGraph, QWidget *parent)
     
     // Otomatis build graph saat halaman dibuat agar user tidak perlu klik manual
     // Kecuali ada data baru, tombol manual tetap disediakan.
-    QTimer::singleShot(500, this, [this](){
-        if(m_genreGraph) m_genreGraph->buildGraph(DatabaseManager::instance().getAllBooks());
+    QTimer::singleShot(100, this, [this](){
+        if(m_genreGraph) {
+            std::vector<Book> allBooks = DatabaseManager::instance().getAllBooks();
+            if (!allBooks.empty()) {
+                m_genreGraph->buildGraph(allBooks);
+                qDebug() << "[RecommendationPage] Auto-built graph with" << allBooks.size() << "books";
+            }
+        }
     });
 }
 
@@ -209,11 +215,13 @@ void RecommendationPage::onGetRecommendations()
     DatabaseManager& dbManager = DatabaseManager::instance();
     std::vector<Book> allBooks = dbManager.getAllBooks();
     Book* targetBook = nullptr;
+    int targetBookIndex = -1;
     
-    for (Book& book : allBooks) {
-        if (book.getJudul().compare(bookTitle, Qt::CaseInsensitive) == 0 || 
-            book.getJudul().contains(bookTitle, Qt::CaseInsensitive)) {
-            targetBook = &book;
+    for (size_t i = 0; i < allBooks.size(); i++) {
+        if (allBooks[i].getJudul().compare(bookTitle, Qt::CaseInsensitive) == 0 || 
+            allBooks[i].getJudul().contains(bookTitle, Qt::CaseInsensitive)) {
+            targetBook = &allBooks[i];
+            targetBookIndex = i;
             break;
         }
     }
@@ -232,24 +240,38 @@ void RecommendationPage::onGetRecommendations()
     QString triggerGenre = "Tidak Spesifik";
     if (!genres.isEmpty()) {
         triggerGenre = genres.first(); // Menggunakan genre utama sebagai node penghubung
-        // Mengambil 4 rekomendasi teratas
-        recommendations = m_genreGraph->getRecommendation(triggerGenre, allBooks, 4);
+        // Mengambil rekomendasi dengan maxDepth=2 (hingga 2 level koneksi graph)
+        recommendations = m_genreGraph->getRecommendation(triggerGenre, allBooks, 2);
     }
     
-    // 3. Tampilkan Hasil
-    if (recommendations.empty()) {
-        m_lblResultStatus->setText(QString("Tidak ada rekomendasi lain untuk genre '%1'.").arg(triggerGenre));
+    // 3. FILTER: Hapus buku yang sama dengan input dari rekomendasi
+    std::vector<Book> filteredRecommendations;
+    int maxRecommendations = 10; // Maksimal 10 rekomendasi
+    int count = 0;
+    
+    for (const Book& book : recommendations) {
+        // Skip buku yang sama dengan buku input
+        if (book.getId() != targetBook->getId() && count < maxRecommendations) {
+            filteredRecommendations.push_back(book);
+            count++;
+        }
+    }
+    
+    // 4. Tampilkan Hasil
+    if (filteredRecommendations.empty()) {
+        m_lblResultStatus->setText(QString("📭 Tidak ada rekomendasi lain untuk genre '%1'.").arg(triggerGenre));
         m_lblResultStatus->setStyleSheet("color: #A3AED0; font-weight: bold; font-size: 16px;");
         m_lblResultStatus->setVisible(true);
     } else {
         // Update Status Label
-        m_lblResultStatus->setText(QString("📚 Karena Anda menyukai '%1' (%2):")
+        m_lblResultStatus->setText(QString("📚 Karena Anda menyukai '%1' (%2), kami rekomendasikan %3 buku:")
                                    .arg(targetBook->getJudul())
-                                   .arg(triggerGenre));
+                                   .arg(triggerGenre)
+                                   .arg(filteredRecommendations.size()));
         m_lblResultStatus->setStyleSheet("color: #2B3674; font-weight: 700; font-size: 18px;");
         m_lblResultStatus->setVisible(true);
         
-        displayRecommendations(recommendations);
+        displayRecommendations(filteredRecommendations);
     }
 }
 

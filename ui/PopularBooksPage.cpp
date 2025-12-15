@@ -15,8 +15,13 @@ PopularBooksPage::PopularBooksPage(QWidget *parent)
     : QWidget(parent)
 {
     setupUI();
+    
     // Gunakan timer agar layout width valid saat pertama kali load
-    QTimer::singleShot(100, this, &PopularBooksPage::refreshBooks);
+    // Auto-load top books menggunakan Priority Queue (Max Heap)
+    QTimer::singleShot(100, this, [this]() {
+        refreshBooks();
+        qDebug() << "[PopularBooksPage] Auto-loaded popular books using Max Heap";
+    });
 }
 
 PopularBooksPage::~PopularBooksPage()
@@ -186,11 +191,12 @@ void PopularBooksPage::createContentSection(QVBoxLayout* contentLayout)
 
 void PopularBooksPage::refreshBooks()
 {
-    // Default: Show Top 10
+    // Default: Show Top 10 using Priority Queue (Max Heap)
     DatabaseManager& db = DatabaseManager::instance();
     std::vector<Book> topBooks = db.getBookManager().getTopRatedBooks(10);
     
-    m_resultLabel->setText("🔥 Top 10 Buku dengan Rating Tertinggi");
+    qDebug() << "[PopularBooksPage] Loaded" << topBooks.size() << "books using Max Heap";
+    m_resultLabel->setText(QString("🔥 Top %1 Buku dengan Rating Tertinggi (Max Heap)").arg(topBooks.size()));
     displayBooksAsCards(topBooks);
 }
 
@@ -244,7 +250,8 @@ void PopularBooksPage::onShowTopN()
     int topN = m_topNInput->value();
     std::vector<Book> topBooks = DatabaseManager::instance().getBookManager().getTopRatedBooks(topN);
     
-    m_resultLabel->setText(QString("🔥 Top %1 Buku Tertinggi (Max Heap)").arg(topN));
+    qDebug() << "[PopularBooksPage] Showing top" << topN << "books - Retrieved:" << topBooks.size();
+    m_resultLabel->setText(QString("🔥 Top %1 Buku Tertinggi (Max Heap - Priority Queue)").arg(topBooks.size()));
     displayBooksAsCards(topBooks);
 }
 
@@ -253,6 +260,7 @@ void PopularBooksPage::onFilterByRating()
     double minRating = m_minRatingInput->value();
     std::vector<Book> popularBooks = DatabaseManager::instance().getBookManager().getPopularBooks(minRating);
     
+    qDebug() << "[PopularBooksPage] Filtered by rating >=" << minRating << "- Found:" << popularBooks.size();
     m_resultLabel->setText(QString("⭐ Menampilkan %1 buku dengan rating ≥ %2").arg(popularBooks.size()).arg(minRating, 0, 'f', 1));
     displayBooksAsCards(popularBooks);
 }
