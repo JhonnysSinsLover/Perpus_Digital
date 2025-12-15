@@ -1,0 +1,138 @@
+# Build directories
+build/
+build-*/
+*-build-*/
+cmake-build-*/
+
+# Qt Creator generated files
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.autosave
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeScripts/
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+.cmake/
+
+# Ninja build files
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+
+# Qt MOC/UIC/RCC generated files
+*_autogen/
+*/moc_*.cpp
+*/ui_*.h
+*/qrc_*.cpp
+Makefile*
+*.qmake.stash
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.ko
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+Perpustakaan_Digital_2.exe
+Perpustakaan_Digital_2
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Qt generated files
+Makefile
+*.Debug
+*.Release
+debug/
+release/
+*.vcxproj*
+*.sln
+
+# IDE specific files
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.cache
+*.old
+
+# Testing
+Testing/
+CTestTestfile.cmake
+
+# Documentation
+html/
+latex/
+
+# Package files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Database files (if you want to exclude them, uncomment)
+# *.db
+# *.sqlite
+# *.db3
+
+# Backup files
+*.backup
+*_backup.*
