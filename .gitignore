@@ -136,3 +136,9 @@ latex/
 # Backup files
 *.backup
 *_backup.*
+
+
+node_modules/
+svg/
+
+templates/
