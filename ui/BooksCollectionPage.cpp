@@ -552,9 +552,27 @@ void BooksCollectionPage::onSearchTextChanged()
     QString searchText = m_searchBox->text().trimmed();
     DatabaseManager& dbManager = DatabaseManager::instance();
     std::vector<Book> results;
-    if (searchText.isEmpty()) results = dbManager.getAllBooks();
-    else results = dbManager.searchByTitle(searchText);
-    if (m_isCardView) loadBooksToCards(results); else loadBooksToTable(results);
+    
+    if (searchText.isEmpty()) {
+        // Tampilkan semua buku
+        results = dbManager.getAllBooks();
+    } else {
+        // Gunakan linear search dari BookManager (implementasi custom)
+        // Linear search cocok untuk partial matching pada judul
+        results = dbManager.getBookManager().searchByAuthor(searchText); // Temporary
+        std::vector<Book> titleResults;
+        
+        // Linear search by title (case-insensitive partial match)
+        for (const Book& book : dbManager.getAllBooks()) {
+            if (book.getJudul().toLower().contains(searchText.toLower())) {
+                titleResults.push_back(book);
+            }
+        }
+        results = titleResults;
+    }
+    
+    if (m_isCardView) loadBooksToCards(results);
+    else loadBooksToTable(results);
 }
 
 void BooksCollectionPage::onSearchByGenre()
@@ -562,18 +580,40 @@ void BooksCollectionPage::onSearchByGenre()
     QString genre = m_genreCombo->currentText();
     DatabaseManager& dbManager = DatabaseManager::instance();
     std::vector<Book> results;
-    if (genre == "-- Semua Genre --") results = dbManager.getAllBooks();
-    else results = dbManager.searchByGenre(genre);
-    if (m_isCardView) loadBooksToCards(results); else loadBooksToTable(results);
+    
+    if (genre == "-- Semua Genre --") {
+        results = dbManager.getAllBooks();
+    } else {
+        // Gunakan linear search dari BookManager (implementasi custom)
+        // Linear search cocok untuk pencarian berdasarkan genre
+        results = dbManager.getBookManager().searchByGenre(genre);
+    }
+    
+    if (m_isCardView) loadBooksToCards(results);
+    else loadBooksToTable(results);
 }
 
 void BooksCollectionPage::onSearchByAuthor()
 {
     QString author = m_authorSearch->text().trimmed();
-    if (author.isEmpty()) { QMessageBox::warning(this, "Peringatan", "Masukkan nama penulis!"); return; }
-    std::vector<Book> results = DatabaseManager::instance().searchByAuthor(author);
-    if (results.empty()) QMessageBox::information(this, "Info", QString("Tidak ada buku dari '%1'").arg(author));
-    if (m_isCardView) loadBooksToCards(results); else loadBooksToTable(results);
+    
+    if (author.isEmpty()) {
+        QMessageBox::warning(this, "Peringatan", "Masukkan nama penulis!");
+        return;
+    }
+    
+    // Gunakan linear search dari BookManager (implementasi custom)
+    // Linear search cocok untuk pencarian berdasarkan penulis (partial matching)
+    DatabaseManager& dbManager = DatabaseManager::instance();
+    std::vector<Book> results = dbManager.getBookManager().searchByAuthor(author);
+    
+    if (results.empty()) {
+        QMessageBox::information(this, "Info", 
+            QString("Tidak ada buku dari penulis '%1'").arg(author));
+    }
+    
+    if (m_isCardView) loadBooksToCards(results);
+    else loadBooksToTable(results);
 }
 
 void BooksCollectionPage::onClearSearch()
@@ -585,41 +625,73 @@ void BooksCollectionPage::onClearSearch()
 void BooksCollectionPage::onSortByTitle()
 {
     // Menggunakan QuickSort dari BookManager (implementasi custom)
+    // QuickSort adalah algoritma sorting dengan kompleksitas O(n log n) average
     DatabaseManager& dbManager = DatabaseManager::instance();
     dbManager.getBookManager().quickSortByTitle(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
+    
+    // Ambil hasil sorting dari BookManager
+    std::vector<Book> books = dbManager.getBookManager().getAllBooks();
+    
+    if (m_isCardView) loadBooksToCards(books);
+    else loadBooksToTable(books);
+    
+    // Toggle urutan untuk klik berikutnya
     m_sortAscending = !m_sortAscending;
+    m_lastSortColumn = "title";
 }
 
 void BooksCollectionPage::onSortByYear()
 {
     // Menggunakan QuickSort dari BookManager (implementasi custom)
+    // QuickSort adalah algoritma sorting dengan kompleksitas O(n log n) average
     DatabaseManager& dbManager = DatabaseManager::instance();
     dbManager.getBookManager().quickSortByYear(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
+    
+    // Ambil hasil sorting dari BookManager
+    std::vector<Book> books = dbManager.getBookManager().getAllBooks();
+    
+    if (m_isCardView) loadBooksToCards(books);
+    else loadBooksToTable(books);
+    
+    // Toggle urutan untuk klik berikutnya
     m_sortAscending = !m_sortAscending;
+    m_lastSortColumn = "year";
 }
 
 void BooksCollectionPage::onSortByRating()
 {
     // Menggunakan QuickSort dari BookManager (implementasi custom)
+    // QuickSort adalah algoritma sorting dengan kompleksitas O(n log n) average
     DatabaseManager& dbManager = DatabaseManager::instance();
     dbManager.getBookManager().quickSortByRating(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
+    
+    // Ambil hasil sorting dari BookManager
+    std::vector<Book> books = dbManager.getBookManager().getAllBooks();
+    
+    if (m_isCardView) loadBooksToCards(books);
+    else loadBooksToTable(books);
+    
+    // Toggle urutan untuk klik berikutnya
     m_sortAscending = !m_sortAscending;
+    m_lastSortColumn = "rating";
 }
 
 void BooksCollectionPage::onSortByAuthor()
 {
     // Menggunakan QuickSort dari BookManager (implementasi custom)
+    // QuickSort adalah algoritma sorting dengan kompleksitas O(n log n) average
     DatabaseManager& dbManager = DatabaseManager::instance();
     dbManager.getBookManager().quickSortByAuthor(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
+    
+    // Ambil hasil sorting dari BookManager
+    std::vector<Book> books = dbManager.getBookManager().getAllBooks();
+    
+    if (m_isCardView) loadBooksToCards(books);
+    else loadBooksToTable(books);
+    
+    // Toggle urutan untuk klik berikutnya
     m_sortAscending = !m_sortAscending;
+    m_lastSortColumn = "author";
 }
 
 void BooksCollectionPage::onEditBook()
@@ -636,13 +708,30 @@ void BooksCollectionPage::onDeleteBook()
 
 void BooksCollectionPage::onUndoDelete()
 {
+    // STACK IMPLEMENTATION - LIFO (Last In First Out)
+    // Mengembalikan buku yang terakhir dihapus dari stack
     DatabaseManager& db = DatabaseManager::instance();
-    if (db.getBookManager().undoDelete()) {
-        db.saveBookManagerToDatabase();
-        refreshTable();
-        QMessageBox::information(this, "Sukses", "Undo berhasil!");
+    
+    if (db.getBookManager().canUndo()) {
+        // Pop dari stack dan restore buku
+        if (db.getBookManager().undoDelete()) {
+            // Simpan perubahan ke database
+            db.saveBookManagerToDatabase();
+            
+            // Refresh tampilan
+            refreshTable();
+            
+            // Tampilkan pesan sukses dengan info stack
+            int remainingUndo = db.getBookManager().getUndoStackSize();
+            QMessageBox::information(this, "✅ Undo Berhasil", 
+                QString("Buku berhasil dikembalikan!\n\n"
+                        "Sisa undo tersedia: %1")
+                        .arg(remainingUndo));
+        }
     } else {
-        QMessageBox::warning(this, "Gagal", "Tidak ada yang bisa di-undo.");
+        QMessageBox::warning(this, "⚠️ Tidak Ada Undo", 
+            "Stack undo kosong!\n\n"
+            "Tidak ada buku yang bisa dikembalikan.");
     }
 }
 
@@ -660,24 +749,30 @@ void BooksCollectionPage::onTableSelectionChanged()
 
 void BooksCollectionPage::onBuildBST()
 {
+    // BINARY SEARCH TREE IMPLEMENTATION
+    // Membangun BST dari semua buku untuk pencarian O(log n)
     DatabaseManager& db = DatabaseManager::instance();
     
-    // Build BST dari semua buku
+    // Build BST dari semua buku (sorted by title)
     db.getBookManager().buildBST();
     
-    QMessageBox::information(this, "BST Berhasil", 
-        QString("Binary Search Tree berhasil dibangun dengan %1 buku!\n\n"
+    QMessageBox::information(this, "🌳 BST Berhasil Dibangun", 
+        QString("Binary Search Tree berhasil dibangun!\n\n"
+                "📚 Total buku: %1\n"
+                "⚡ Kompleksitas pencarian: O(log n)\n\n"
                 "BST diurutkan berdasarkan judul buku.\n"
-                "Gunakan fitur 'Search BST' untuk mencari buku dengan cepat.")
+                "Gunakan 'Search BST' untuk pencarian cepat.")
                 .arg(db.getBookManager().getBookCount()));
 }
 
 void BooksCollectionPage::onSearchBST()
 {
+    // BINARY SEARCH TREE SEARCH - O(log n) complexity
     QString searchTitle = m_bstSearchBox->text().trimmed();
     
     if (searchTitle.isEmpty()) {
-        QMessageBox::warning(this, "Peringatan", "Masukkan judul buku yang ingin dicari!");
+        QMessageBox::warning(this, "⚠️ Peringatan", 
+            "Masukkan judul buku yang ingin dicari!");
         return;
     }
     
@@ -685,13 +780,19 @@ void BooksCollectionPage::onSearchBST()
     
     // Cek apakah BST sudah dibangun
     if (!db.getBookManager().hasBST()) {
-        QMessageBox::warning(this, "BST Belum Dibangun", 
+        auto reply = QMessageBox::question(this, "🌳 BST Belum Dibangun", 
             "Binary Search Tree belum dibangun!\n\n"
-            "Klik tombol 'Build BST' terlebih dahulu.");
-        return;
+            "Apakah Anda ingin membangun BST sekarang?",
+            QMessageBox::Yes | QMessageBox::No);
+        
+        if (reply == QMessageBox::Yes) {
+            onBuildBST();
+        } else {
+            return;
+        }
     }
     
-    // Cari di BST
+    // Cari di BST dengan kompleksitas O(log n)
     Book* found = db.getBookManager().searchBST(searchTitle);
     
     if (found) {
@@ -705,20 +806,24 @@ void BooksCollectionPage::onSearchBST()
             loadBooksToTable(result);
         }
         
-        QMessageBox::information(this, "Buku Ditemukan", 
-            QString("✅ Buku ditemukan menggunakan Binary Search Tree!\n\n"
-                    "Judul: %1\n"
-                    "Penulis: %2\n"
-                    "Tahun: %3\n"
-                    "Rating: %4")
+        QMessageBox::information(this, "✅ Buku Ditemukan (BST)", 
+            QString("Buku ditemukan menggunakan Binary Search Tree!\n"
+                    "⚡ Kompleksitas: O(log n)\n\n"
+                    "📖 Judul: %1\n"
+                    "✍️ Penulis: %2\n"
+                    "📅 Tahun: %3\n"
+                    "⭐ Rating: %4")
                     .arg(found->getJudul())
                     .arg(found->getPenulis())
                     .arg(found->getTahun())
-                    .arg(found->getRating()));
+                    .arg(found->getRating(), 0, 'f', 1));
     } else {
-        QMessageBox::information(this, "Tidak Ditemukan", 
-            QString("❌ Buku dengan judul '%1' tidak ditemukan di BST.\n\n"
-                    "Pastikan ejaan judul benar dan BST sudah dibangun.")
+        QMessageBox::information(this, "❌ Tidak Ditemukan", 
+            QString("Buku dengan judul '%1' tidak ditemukan di BST.\n\n"
+                    "Tips:\n"
+                    "• Pastikan ejaan judul benar\n"
+                    "• BST melakukan pencarian exact match\n"
+                    "• Gunakan search box utama untuk partial search")
                     .arg(searchTitle));
     }
 }
