@@ -5,17 +5,10 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QScrollBar>
-#include <QLabel>
 #include <QDebug>
 
 RecommendationPage::RecommendationPage(QWidget *parent)
     : QWidget(parent)
-{
-    setupUI();
-}
-
-RecommendationPage::RecommendationPage(Graph* genreGraph, QWidget *parent)
-    : QWidget(parent), m_genreGraph(genreGraph)
 {
     setupUI();
 }
@@ -199,20 +192,18 @@ void RecommendationPage::onSearchClicked()
         return;
     }
 
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    if (!dbManager.isOpen()) {
-        QMessageBox::warning(this, "Error", "Database tidak tersedia!");
+    BookManager* manager = DatabaseManager::getInstance()->getBookManager();
+    if (!manager) {
+        QMessageBox::warning(this, "Error", "BookManager tidak tersedia!");
         return;
     }
 
-    std::vector<Book> allBooks = dbManager.getAllBooks();
+    std::vector<Book*> allBooks = manager->getAllBooks();
     Book* targetBook = nullptr;
-    static Book foundBook;
 
-    for (Book& book : allBooks) {
-        if (book.getJudul().contains(query, Qt::CaseInsensitive)) {
-            foundBook = book;
-            targetBook = &foundBook;
+    for (Book* book : allBooks) {
+        if (book && book->getJudul().contains(query, Qt::CaseInsensitive)) {
+            targetBook = book;
             break;
         }
     }
@@ -228,21 +219,15 @@ void RecommendationPage::onSearchClicked()
     }
 
     Graph graph;
-    graph.buildGraph(allBooks);
-
-    // Get recommendations based on the first genre of target book
-    QString primaryGenre = targetBook->getGenre().isEmpty() ? "" : targetBook->getGenre().first();
-    std::vector<Book> recommendations = graph.getRecommendation(primaryGenre, allBooks, 2);
-    
-    // Filter out the target book itself and limit to 8
-    std::vector<Book> filteredRecs;
-    for (const Book& book : recommendations) {
-        if (book.getId() != targetBook->getId() && filteredRecs.size() < 8) {
-            filteredRecs.push_back(book);
+    for (Book* book : allBooks) {
+        if (book) {
+            graph.addBook(book);
         }
     }
 
-    if (filteredRecs.empty()) {
+    std::vector<Book*> recommendations = graph.getRecommendations(targetBook, 8);
+
+    if (recommendations.empty()) {
         m_browserResults->setHtml(
             "<div style='text-align: center; color: #FFA000; padding: 40px;'>"
             "<p style='font-size: 15px; font-weight: 600;'>Tidak ada rekomendasi tersedia</p>"
@@ -263,8 +248,8 @@ void RecommendationPage::onSearchClicked()
     html += "<h4 style='color: #2B3674; margin: 20px 0 15px 0;'>Rekomendasi untuk Anda:</h4>";
     html += "<div style='display: grid; gap: 12px;'>";
 
-    for (size_t i = 0; i < filteredRecs.size(); ++i) {
-        const Book& book = filteredRecs[i];
+    for (size_t i = 0; i < recommendations.size(); ++i) {
+        Book* book = recommendations[i];
         html += QString(
             "<div style='background: white; padding: 15px; border-radius: 10px; border: 1px solid #E0E5F2;'>"
             "<div style='display: flex; align-items: start;'>"
@@ -277,11 +262,11 @@ void RecommendationPage::onSearchClicked()
             "</div>"
             "</div>"
         ).arg(i + 1)
-         .arg(book.getJudul())
-         .arg(book.getPenulis())
-         .arg(book.getTahun())
-         .arg(book.getRating(), 0, 'f', 1)
-         .arg(book.getGenre().join(", "));
+         .arg(book->getJudul())
+         .arg(book->getPenulis())
+         .arg(book->getTahun())
+         .arg(book->getRating(), 0, 'f', 1)
+         .arg(book->getGenre().join(", "));
     }
 
     html += "</div></div>";
@@ -290,23 +275,34 @@ void RecommendationPage::onSearchClicked()
 
 void RecommendationPage::onBuildGraphClicked()
 {
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    if (!dbManager.isOpen()) {
-        QMessageBox::warning(this, "Error", "Database tidak tersedia!");
+    BookManager* manager = DatabaseManager::getInstance()->getBookManager();
+    if (!manager) {
+        QMessageBox::warning(this, "Error", "BookManager tidak tersedia!");
         return;
     }
 
-    std::vector<Book> allBooks = dbManager.getAllBooks();
+    std::vector<Book*> allBooks = manager->getAllBooks();
     Graph graph;
-    graph.buildGraph(allBooks);
+
+    for (Book* book : allBooks) {
+        if (book) {
+            graph.addBook(book);
+        }
+    }
 
     int totalBooks = allBooks.size();
-    int totalGenres = graph.getAllGenres().size();
+    int totalEdges = 0;
+
+    for (Book* book : allBooks) {
+        if (book) {
+            totalEdges += graph.getRecommendations(book, 100).size();
+        }
+    }
 
     QMessageBox::information(this, "Graph Berhasil Dibangun",
-        QString("Graph telah berhasil dibangun!\n\nTotal Buku: %1\nTotal Genre Nodes: %2\n\nGraph siap digunakan untuk rekomendasi!")
+        QString("Graph telah berhasil dibangun!\n\nTotal Nodes (Buku): %1\nTotal Edges (Koneksi): %2")
             .arg(totalBooks)
-            .arg(totalGenres));
+            .arg(totalEdges / 2));
 }
 
 void RecommendationPage::onRefreshClicked()

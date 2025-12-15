@@ -8,9 +8,19 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QFrame>
+#include <QDateEdit>
+#include <QDate>
 #include <QVBoxLayout>
 #include <QGraphicsDropShadowEffect>
 #include "../backend/DatabaseManager.h"
+#include <queue>
+
+struct BorrowRequest {
+    int id;
+    QString namaPeminjam;
+    QString bukuDipinjam;
+    QDate tanggalPinjam;
+};
 
 /**
  * @brief Page for managing book borrowing queue (FIFO) - Modern UI
@@ -26,9 +36,9 @@ public:
     void refreshQueue();
 
 private slots:
-    void onAddToBorrow();
-    void onProcessNext();
-    void onClearQueue();
+    void onEnqueueClicked();
+    void onProcessNextClicked();
+    void onClearQueueClicked();
 
 private:
     void setupUI();
@@ -41,17 +51,26 @@ private:
     QFrame* createCardFrame();
     QWidget* createInputGroup(const QString& labelText, QWidget* inputWidget);
     void loadQueueToTable();
+    void updateQueueTable();
     
     // UI Elements
     QTableWidget* m_tableQueue;
     QLineEdit* m_borrowerNameInput;
+    QLineEdit* m_lineNamaPeminjam;
+    QLineEdit* m_lineBukuDipinjam;
     QComboBox* m_bookCombo;
+    QDateEdit* m_dateEdit;
     
     QPushButton* m_btnAddToBorrow;
+    QPushButton* m_btnEnqueue;
     QPushButton* m_btnProcessNext;
     QPushButton* m_btnClearQueue;
     
     QLabel* m_queueSizeLabel;
+    QLabel* m_lblQueueSize;
+    
+    std::queue<BorrowRequest> m_queue;
+    int m_nextBorrowId;
 };
 
 #endif // BORROWQUEUEPAGE_H

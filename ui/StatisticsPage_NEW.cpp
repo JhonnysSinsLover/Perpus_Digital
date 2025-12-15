@@ -176,17 +176,13 @@ QWidget* StatisticsPage::createSummaryCard(const QString& title, const QString& 
 
 void StatisticsPage::loadStatistics()
 {
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    if (!dbManager.isOpen()) {
-        QMessageBox::warning(this, "Error", "Database tidak tersedia!");
+    BookManager* manager = DatabaseManager::getInstance()->getBookManager();
+    if (!manager) {
+        QMessageBox::warning(this, "Error", "BookManager tidak tersedia!");
         return;
     }
 
-    std::vector<Book> booksVec = dbManager.getAllBooks();
-    std::vector<Book*> books;
-    for (auto& book : booksVec) {
-        books.push_back(&book);
-    }
+    std::vector<Book*> books = manager->getAllBooks();
 
     updateSummary(books);
     updateGenreChart(books);
@@ -373,9 +369,4 @@ void StatisticsPage::updateYearChart(const std::vector<Book*>& books)
 
     html += "</div>";
     m_browserYearChart->setHtml(html);
-}
-
-void StatisticsPage::updateStatistics()
-{
-    loadStatistics();
 }

@@ -185,20 +185,21 @@ void PopularBooksPage::loadPopularBooks()
 {
     m_tableBooks->setRowCount(0);
 
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    if (!dbManager.isOpen()) {
-        QMessageBox::warning(this, "Error", "Database tidak tersedia!");
+    BookManager* manager = DatabaseManager::getInstance()->getBookManager();
+    if (!manager) {
+        QMessageBox::warning(this, "Error", "BookManager tidak tersedia!");
         return;
     }
 
     int topN = m_spinTopN->value();
-    std::vector<Book> books = dbManager.getAllBooks();
+    std::vector<Book*> books = manager->getAllBooks();
 
-    // Use pair<rating, index> to avoid needing operator< for Book
-    std::priority_queue<std::pair<double, size_t>> maxHeap;
+    std::priority_queue<std::pair<double, Book*>> maxHeap;
 
-    for (size_t i = 0; i < books.size(); ++i) {
-        maxHeap.push({books[i].getRating(), i});
+    for (Book* book : books) {
+        if (book) {
+            maxHeap.push({book->getRating(), book});
+        }
     }
 
     int count = 0;
@@ -208,8 +209,7 @@ void PopularBooksPage::loadPopularBooks()
         auto pair = maxHeap.top();
         maxHeap.pop();
 
-        size_t bookIndex = pair.second;
-        const Book& book = books[bookIndex];
+        Book* book = pair.second;
 
         m_tableBooks->insertRow(count);
 
@@ -228,15 +228,15 @@ void PopularBooksPage::loadPopularBooks()
         }
 
         m_tableBooks->setItem(count, 0, rankItem);
-        m_tableBooks->setItem(count, 1, new QTableWidgetItem(book.getJudul()));
-        m_tableBooks->setItem(count, 2, new QTableWidgetItem(book.getPenulis()));
-        m_tableBooks->setItem(count, 3, new QTableWidgetItem(book.getGenre().join(", ")));
+        m_tableBooks->setItem(count, 1, new QTableWidgetItem(book->getJudul()));
+        m_tableBooks->setItem(count, 2, new QTableWidgetItem(book->getPenulis()));
+        m_tableBooks->setItem(count, 3, new QTableWidgetItem(book->getGenre().join(", ")));
 
-        QTableWidgetItem* yearItem = new QTableWidgetItem(QString::number(book.getTahun()));
+        QTableWidgetItem* yearItem = new QTableWidgetItem(QString::number(book->getTahun()));
         yearItem->setTextAlignment(Qt::AlignCenter);
         m_tableBooks->setItem(count, 4, yearItem);
 
-        QTableWidgetItem* ratingItem = new QTableWidgetItem(QString::number(book.getRating(), 'f', 1));
+        QTableWidgetItem* ratingItem = new QTableWidgetItem(QString::number(book->getRating(), 'f', 1));
         ratingItem->setTextAlignment(Qt::AlignCenter);
         ratingItem->setFont(QFont("Segoe UI", 12, QFont::Bold));
         ratingItem->setForeground(QBrush(QColor("#FFA000")));
@@ -247,9 +247,4 @@ void PopularBooksPage::loadPopularBooks()
     }
 
     m_lblTotal->setText(QString("Total: %1 buku").arg(count));
-}
-
-void PopularBooksPage::refreshBooks()
-{
-    loadPopularBooks();
 }

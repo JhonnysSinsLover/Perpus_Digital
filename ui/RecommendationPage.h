@@ -19,12 +19,14 @@ class RecommendationPage : public QWidget
     Q_OBJECT
 
 public:
+    explicit RecommendationPage(QWidget *parent = nullptr);
     explicit RecommendationPage(Graph* genreGraph, QWidget *parent = nullptr);
     ~RecommendationPage();
 
 private slots:
-    void onGetRecommendations();
-    void onBuildGraph();
+    void onSearchClicked();
+    void onBuildGraphClicked();
+    void onRefreshClicked();
 
 private:
     void setupUI();
@@ -37,9 +39,13 @@ private:
     Graph* m_genreGraph;
     
     QLineEdit* m_bookTitleInput;
+    QLineEdit* m_lineSearchBook;
     QPushButton* m_btnGetRec;
     QPushButton* m_btnBuildGraph;
+    QPushButton* m_btnSearch;
+    QPushButton* m_btnRefresh;
     QTextBrowser* m_resultsBrowser;
+    QTextBrowser* m_browserResults;
 };
 
 #endif // RECOMMENDATIONPAGE_H

@@ -311,8 +311,3 @@ void BorrowQueuePage::updateQueueTable()
     m_btnProcessNext->setEnabled(!m_queue.empty());
     m_btnClearQueue->setEnabled(!m_queue.empty());
 }
-
-void BorrowQueuePage::refreshQueue()
-{
-    updateQueueTable();
-}

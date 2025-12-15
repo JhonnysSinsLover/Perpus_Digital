@@ -26,11 +26,10 @@ public:
     void refreshBooks();
 
 private slots:
-    void onShowTopN();
-    void onFilterByRating();
 
 private:
     void setupUI();
+    void loadPopularBooks();
     
     // UI Helpers
     void createHeaderSection(QVBoxLayout* mainLayout);
@@ -43,10 +42,14 @@ private:
     // UI Elements
     QTableWidget* m_tableBooks;
     QSpinBox* m_topNInput;
+    QSpinBox* m_spinTopN;
     QDoubleSpinBox* m_minRatingInput;
     QPushButton* m_btnShowTopN;
+    QPushButton* m_btnApplyFilter;
+    QPushButton* m_btnRefresh;
     QPushButton* m_btnFilterRating;
     QLabel* m_resultLabel;
+    QLabel* m_lblTotal;
 };
 
 #endif // POPULARBOOKSPAGE_H

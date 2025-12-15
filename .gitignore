@@ -136,3 +136,14 @@ latex/
 # Backup files
 *.backup
 *_backup.*
+
+node_modules
+package.json
+package-lock.json
+
+svg/
+*.svg
+
+templates/
+*.tmplates
+

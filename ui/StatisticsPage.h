@@ -4,8 +4,12 @@
 #include <QWidget>
 #include <QLabel>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect> // Penting untuk efek modern
+#include <QPushButton>
+#include <QTextBrowser>
+#include <QGraphicsDropShadowEffect>
 #include "../backend/DatabaseManager.h"
+#include "../backend/Book.h"
+#include <vector>
 
 class StatisticsPage : public QWidget
 {
@@ -19,24 +23,23 @@ public:
 
 private:
     void setupUI();
-    void applyStyles();
     
-    // Helper untuk membuat Container Kartu Putih dengan Shadow
-    QFrame* createCardFrame();
+    QWidget* createSummaryCard(const QString& title, const QString& value, const QString& iconPath, const QString& color);
     
-    // Helper untuk Summary Card (Icon + Text)
-    QFrame* createStatCard(const QString& icon, const QString& title, 
-                           const QString& value, const QString& color);
+    void loadStatistics();
+    void updateSummary(const std::vector<Book*>& books);
+    void updateGenreChart(const std::vector<Book*>& books);
+    void updateRatingChart(const std::vector<Book*>& books);
+    void updateYearChart(const std::vector<Book*>& books);
     
-    // Chart widgets containers
-    QFrame* m_genreChartFrame;
-    QFrame* m_ratingChartFrame;
-    QFrame* m_yearChartFrame;
+    QWidget* m_lblTotalBooks;
+    QWidget* m_lblTotalGenres;
+    QWidget* m_lblAvgRating;
+    QWidget* m_lblLatestYear;
     
-    // Labels untuk update nilai summary
-    QLabel* m_lblTotalBooks;
-    QLabel* m_lblTotalGenres;
-    QLabel* m_lblAvgRating;
+    QTextBrowser* m_browserGenreChart;
+    QTextBrowser* m_browserRatingChart;
+    QTextBrowser* m_browserYearChart;
 };
 
 #endif // STATISTICSPAGE_H
