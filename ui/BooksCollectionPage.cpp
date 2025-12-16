@@ -1,6 +1,7 @@
 #include "BooksCollectionPage.h"
 #include "AddBookDialog.h"
-#include "BookCardWidget.h" 
+#include "BookCardWidget.h"
+#include "BookPreviewDialog.h" // [PENTING] Include dialog preview
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -14,7 +15,7 @@ BooksCollectionPage::BooksCollectionPage(QWidget *parent)
     , m_isCardView(true) 
 {
     setupUI();
-    // Panggil refreshTable di awal untuk load data & populate genre
+    // Panggil refreshTable di awal untuk load data
     refreshTable();
 }
 
@@ -24,15 +25,15 @@ BooksCollectionPage::~BooksCollectionPage()
 
 void BooksCollectionPage::setupUI()
 {
-    // Layout Utama: Vertikal penuh
+    // Layout Utama
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    // 1. Header Section (Fixed Top)
+    // 1. Header Section
     createHeaderSection(mainLayout);
     
-    // 2. Control/Toolbar Section (Fixed Top, under Header)
+    // 2. Control/Toolbar Section
     QWidget* toolbarWidget = new QWidget();
     toolbarWidget->setStyleSheet("background-color: #F4F7FE; border-bottom: 1px solid #E0E5F2;");
     QVBoxLayout* toolbarLayout = new QVBoxLayout(toolbarWidget);
@@ -40,8 +41,7 @@ void BooksCollectionPage::setupUI()
     createControlSection(toolbarLayout);
     mainLayout->addWidget(toolbarWidget);
 
-    // 3. Scroll Area (Middle - Expanded)
-    // Area ini HANYA berisi daftar buku (Card/Table).
+    // 3. Scroll Area
     m_contentScrollArea = new QScrollArea(this);
     m_contentScrollArea->setWidgetResizable(true);
     m_contentScrollArea->setFrameShape(QFrame::NoFrame);
@@ -57,16 +57,13 @@ void BooksCollectionPage::setupUI()
     QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
     contentLayout->setContentsMargins(30, 10, 30, 30);
     
-    createContentSection(contentLayout); // Masukkan Card/Table ke sini
+    createContentSection(contentLayout);
     
-    contentLayout->addStretch(); // Push content ke atas
+    contentLayout->addStretch();
     m_contentScrollArea->setWidget(contentWidget);
-    
-    // Tambahkan scroll area ke layout utama dengan stretch factor 1 (agar memenuhi ruang kosong)
     mainLayout->addWidget(m_contentScrollArea, 1);
 
     // 4. Action Section (Sticky Bottom)
-    // Ini ditaruh DI LUAR scroll area, langsung ke mainLayout agar menempel di bawah
     createActionSection(mainLayout);
 }
 
@@ -131,13 +128,10 @@ void BooksCollectionPage::createControlSection(QVBoxLayout* containerLayout)
     toolbarLayout->addWidget(m_genreCombo);
 
     m_sortCombo = new QComboBox();
-    m_sortCombo->addItem("Judul (A-Z)");           // Index 0
-    m_sortCombo->addItem("Judul (Z-A)");           // Index 1
-    m_sortCombo->addItem("Tahun (Terbaru)");       // Index 2
-    m_sortCombo->addItem("Tahun (Terlama)");       // Index 3 (BARU)
-    m_sortCombo->addItem("Rating (Tertinggi)");    // Index 4
-    m_sortCombo->addItem("Rating (Terendah)");     // Index 5 (BARU)
-    
+    m_sortCombo->addItem("Sort: Judul (A-Z)");
+    m_sortCombo->addItem("Sort: Judul (Z-A)");
+    m_sortCombo->addItem("Sort: Tahun (Baru)");
+    m_sortCombo->addItem("Sort: Rating (Tinggi)"); 
     m_sortCombo->setFixedWidth(170);
     m_sortCombo->setStyleSheet(inputStyle);
     toolbarLayout->addWidget(m_sortCombo);
@@ -226,6 +220,9 @@ void BooksCollectionPage::createContentSection(QVBoxLayout* contentLayout)
     
     connect(m_tableBooks, &QTableWidget::itemSelectionChanged, this, &BooksCollectionPage::onTableSelectionChanged);
     
+    // [UI/UX PREVIEW] Double click di tabel membuka preview
+    connect(m_tableBooks, &QTableWidget::cellDoubleClicked, this, &BooksCollectionPage::onPreviewBook);
+    
     tableLayout->addWidget(m_tableBooks);
     m_viewStack->addWidget(tableFrame);
     
@@ -237,7 +234,7 @@ void BooksCollectionPage::createActionSection(QVBoxLayout* mainLayout)
     // Container untuk Footer (Sticky Bottom)
     QWidget* actionWidget = new QWidget();
     actionWidget->setStyleSheet("background-color: white; border-top: 1px solid #E0E5F2;");
-    actionWidget->setFixedHeight(80); // Fixed height
+    actionWidget->setFixedHeight(80); 
 
     QHBoxLayout* actionLayout = new QHBoxLayout(actionWidget);
     actionLayout->setContentsMargins(30, 15, 30, 15);
@@ -264,7 +261,6 @@ void BooksCollectionPage::createActionSection(QVBoxLayout* mainLayout)
     actionLayout->addWidget(m_btnDeleteBook);
     actionLayout->addWidget(m_btnEditBook);
     
-    // Tambahkan widget ini ke layout UTAMA (bukan ke scroll area)
     mainLayout->addWidget(actionWidget);
     
     connect(m_btnEditBook, &QPushButton::clicked, this, &BooksCollectionPage::onEditBook);
@@ -284,10 +280,10 @@ QFrame* BooksCollectionPage::createCardFrame()
 void BooksCollectionPage::refreshTable()
 {
     DatabaseManager& dbManager = DatabaseManager::instance();
-    m_currentBooks = dbManager.getAllBooks(); // Load data
+    m_currentBooks = dbManager.getAllBooks();
     
-    populateGenreComboBox(); // Populate genre
-    onFilterChanged();       // Apply filter
+    populateGenreComboBox(); 
+    onFilterChanged();       
 }
 
 void BooksCollectionPage::populateGenreComboBox()
@@ -299,7 +295,6 @@ void BooksCollectionPage::populateGenreComboBox()
     m_genreCombo->addItem("Semua Genre");
     
     std::set<QString> genres;
-    // Ambil genre dari data yang sudah di-load
     for (const Book& book : m_currentBooks) {
         for (const QString& g : book.getGenre()) {
             if(!g.trimmed().isEmpty()) genres.insert(g.trimmed());
@@ -349,10 +344,8 @@ void BooksCollectionPage::onFilterChanged()
         switch(sortIdx) {
             case 0: return a.getJudul() < b.getJudul(); // A-Z
             case 1: return a.getJudul() > b.getJudul(); // Z-A
-            case 2: return a.getTahun() > b.getTahun(); // Tahun Terbaru
-            case 3: return a.getTahun() < b.getTahun(); // Tahun Terlama (FIX)
-            case 4: return a.getRating() > b.getRating(); // Rating Tertinggi
-            case 5: return a.getRating() < b.getRating(); // Rating Terendah (FIX)
+            case 2: return a.getTahun() > b.getTahun(); // Terbaru
+            case 3: return a.getRating() > b.getRating(); // Rating Tertinggi
             default: return a.getJudul() < b.getJudul();
         }
     });
@@ -389,61 +382,58 @@ void BooksCollectionPage::loadBooksToTable(const std::vector<Book>& books)
 
 void BooksCollectionPage::loadBooksToCards(const std::vector<Book>& books)
 {
-    // 1. Bersihkan kartu lama & Reset Kolom
+    // Clear old cards
     QLayoutItem* item;
     while ((item = m_cardLayout->takeAt(0)) != nullptr) {
         if (item->widget()) delete item->widget();
         delete item;
     }
     
-    // PENTING: Reset settingan kolom sebelumnya agar tidak berantakan saat resize
+    // Reset Layout Stretch
     for (int i = 0; i < m_cardLayout->columnCount(); ++i) {
         m_cardLayout->setColumnStretch(i, 0);
     }
 
-    // 2. Hitung Grid
+    // Responsive Logic
     int viewportWidth = m_contentScrollArea->viewport()->width();
-    if (viewportWidth <= 0) viewportWidth = 1000; 
+    if (viewportWidth <= 0) viewportWidth = 1000;
     
-    // Kurangi sedikit padding agar tidak memicu horizontal scrollbar
+    // Tweak margin agar tidak muncul horizontal scroll
     int effectiveWidth = viewportWidth - 40; 
-
+    
     int minCardWidth = 220; 
     int spacing = 20;
-
-    // Hitung berapa kolom yang muat
+    
     int numCols = (effectiveWidth + spacing) / (minCardWidth + spacing);
     if (numCols < 1) numCols = 1;
-
-    // 3. KUNCI PERBAIKAN: Paksa Grid membuat slot untuk SEMUA kolom
-    // Walaupun bukunya cuma 1, kita paksa Grid menganggap ada 'numCols' kolom.
-    // Dengan memberi stretch factor 1 ke semua kolom, pembagian ruang jadi rata.
+    
+    // Force Grid columns
     for (int i = 0; i < numCols; ++i) {
         m_cardLayout->setColumnStretch(i, 1);
     }
-
+    
     m_cardLayout->setVerticalSpacing(spacing);
     m_cardLayout->setHorizontalSpacing(spacing);
-    m_cardLayout->setAlignment(Qt::AlignTop); // Rata atas
+    m_cardLayout->setAlignment(Qt::AlignTop);
 
-    // 4. Masukkan Buku
     for (int i = 0; i < books.size(); ++i) {
         BookCardWidget* card = new BookCardWidget(books[i], m_cardContainer);
         
-        // Tetap gunakan Expanding agar mengisi celah kecil,
-        // tapi karena sudah ada 'setColumnStretch', dia tidak akan menggila.
+        // Stretch Logic
         card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        
-        // Opsional: Batasi lebar maksimal agar tidak terlalu gepeng jika layar ultrawide
         card->setMaximumWidth(400); 
         
         int row = i / numCols;
         int col = i % numCols;
         
         m_cardLayout->addWidget(card, row, col);
-        
+
+        // Signal Connections
         connect(card, &BookCardWidget::editRequested, this, &BooksCollectionPage::editBookRequested);
         connect(card, &BookCardWidget::deleteRequested, this, &BooksCollectionPage::deleteBookRequested);
+        
+        // [UI/UX PREVIEW] Klik kartu membuka preview
+        connect(card, &BookCardWidget::cardClicked, this, &BooksCollectionPage::onPreviewBook);
     }
 }
 
@@ -465,47 +455,74 @@ void BooksCollectionPage::onBuildBST() {
 }
 
 void BooksCollectionPage::onSearchBST() {
-    QString searchTitle = m_bstSearchBox->text().trimmed();
-    
-    if (searchTitle.isEmpty()) {
-        QMessageBox::warning(this, "Warning", "Masukkan judul buku yang ingin dicari!");
+    QString query = m_bstSearchBox->text().trimmed();
+    if (query.isEmpty()) {
+        refreshTable();
         return;
     }
 
-    DatabaseManager& db = DatabaseManager::instance();
-    
-    // Cek apakah BST sudah dibangun
-    if (!db.getBookManager().hasBST()) {
-        auto reply = QMessageBox::question(this, "BST Not Built", 
-            "Binary Search Tree belum dibangun!\n"
-            "Apakah Anda ingin membangun BST sekarang?",
-            QMessageBox::Yes | QMessageBox::No);
-        
-        if (reply == QMessageBox::Yes) {
-            onBuildBST();
-        }
-        return;
-    }
+    // IMPROVED: Menggunakan searchBSTPartial untuk pencarian yang lebih fleksibel
+    // Mendukung: partial match, case-insensitive, tidak perlu judul lengkap
+    std::vector<Book> results = DatabaseManager::instance().getBookManager().searchBSTPartial(query);
 
-    // PERBAIKAN: Menggunakan searchBST dengan QString (judul), bukan int
-    Book* result = db.getBookManager().searchBST(searchTitle);
-
-    if (result != nullptr) {
-        std::vector<Book> foundBooks;
-        foundBooks.push_back(*result);
+    if (!results.empty()) {
+        // Tampilkan hasil pencarian
+        if (m_isCardView) loadBooksToCards(results);
+        else loadBooksToTable(results);
         
-        if (m_isCardView) loadBooksToCards(foundBooks);
-        else loadBooksToTable(foundBooks);
-        
-        QMessageBox::information(this, "Found", 
-            QString("Buku ditemukan!\n\nJudul: %1\nPenulis: %2\nRating: %3")
-                .arg(result->getJudul())
-                .arg(result->getPenulis())
-                .arg(result->getRating()));
+        QMessageBox::information(this, "Ditemukan", 
+            QString("Ditemukan %1 buku yang cocok dengan '%2'!")
+                .arg(results.size())
+                .arg(query));
     } else {
-        QMessageBox::information(this, "Not Found", 
-            QString("Buku dengan judul '%1' tidak ditemukan dalam Tree.").arg(searchTitle));
+        QMessageBox::information(this, "Tidak Ditemukan", 
+            QString("Tidak ada buku yang cocok dengan '%1' dalam BST.").arg(query));
     }
+}
+
+// --- UI/UX PREVIEW SLOT ---
+
+void BooksCollectionPage::onPreviewBook() {
+    // 1. Tentukan Buku mana yang diklik
+    int id = -1;
+
+    // A. Cek apakah trigger dari Klik Kartu (Sender adalah BookCardWidget)
+    QObject* senderObj = sender();
+    if (senderObj) {
+        BookCardWidget* card = qobject_cast<BookCardWidget*>(senderObj);
+        if (card) {
+            id = card->getBookId();
+        }
+    }
+
+    // B. Jika bukan dari kartu, cek seleksi di tabel
+    if (id == -1) {
+        id = getSelectedBookId();
+    }
+    
+    // C. Jika masih tidak ada ID (misal klik ganda di area kosong tabel), return
+    if (id == -1) return;
+    
+    // 2. Ambil Data Buku
+    DatabaseManager& db = DatabaseManager::instance();
+    Book book = db.getBookById(id);
+    
+    if (book.getId() == 0) {
+        QMessageBox::warning(this, "Error", "Buku tidak ditemukan di database!");
+        return;
+    }
+    
+    // 3. Tampilkan Dialog Preview Modern
+    BookPreviewDialog* dialog = new BookPreviewDialog(book, this);
+    
+    // [FITUR] Tambahkan ke Queue jika tombol pinjam diklik di dialog
+    connect(dialog, &BookPreviewDialog::bookBorrowed, this, [this](int bookId, const QString& borrowerName) {
+        QMessageBox::information(this, "Berhasil", 
+            QString("Buku telah ditambahkan ke antrian peminjaman!\nPeminjam: %1").arg(borrowerName));
+    });
+    
+    dialog->exec();
+    delete dialog;
 }
 
 void BooksCollectionPage::onToggleView()

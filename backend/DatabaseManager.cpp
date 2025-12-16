@@ -149,6 +149,15 @@ bool DatabaseManager::updateBook(const Book& book)
 
 bool DatabaseManager::deleteBook(int id)
 {
+    // IMPORTANT: Sync BookManager first to ensure it has the latest data
+    syncBookManager();
+    
+    // Save to undo stack in BookManager before deleting from database
+    // This allows the undo functionality to work properly (Stack - LIFO)
+    if (m_bookManager.removeBook(id)) {
+        qDebug() << "Book saved to undo stack (Stack - LIFO)";
+    }
+    
     QSqlQuery query;
     query.prepare("DELETE FROM books WHERE id = :id");
     query.bindValue(":id", id);
@@ -158,7 +167,7 @@ bool DatabaseManager::deleteBook(int id)
         return false;
     }
     
-    qDebug() << "Book deleted successfully, ID:" << id;
+    qDebug() << "Book deleted successfully from database, ID:" << id;
     return true;
 }
 

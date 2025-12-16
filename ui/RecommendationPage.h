@@ -23,6 +23,7 @@ public:
 private slots:
     void onGetRecommendations();
     void onBuildGraph();
+    void onPreviewBook(int bookId);
 
 private:
     void setupUI();
@@ -32,6 +33,7 @@ private:
     // Helpers
     QFrame* createCardFrame();
     void displayRecommendations(const std::vector<Book>& books);
+    void displayRecommendedBooks(const std::vector<Book>& books, int startRow);
     void clearRecommendationGrid();
 
     Graph* m_genreGraph;

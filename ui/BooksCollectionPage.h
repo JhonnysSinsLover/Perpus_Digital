@@ -46,15 +46,15 @@ private slots:
     // BST Slots
     void onBuildBST();
     void onSearchBST();
+    
+    // [BARU] Preview Slot
+    void onPreviewBook();
 
 private:
     void setupUI();
     void createHeaderSection(QVBoxLayout* mainLayout);
-    // Toolbar digabung agar rapi di atas
     void createControlSection(QVBoxLayout* containerLayout); 
-    // Content hanya berisi Buku
     void createContentSection(QVBoxLayout* contentLayout);
-    // Action Section dipisah agar jadi Sticky Footer
     void createActionSection(QVBoxLayout* mainLayout); 
 
     // Helpers
@@ -77,7 +77,7 @@ private:
     QLineEdit* m_searchBox;
     QComboBox* m_genreCombo;
     QComboBox* m_sortCombo;
-    QLineEdit* m_bstSearchBox; // Input untuk BST
+    QLineEdit* m_bstSearchBox; 
 
     // Buttons
     QPushButton* m_btnEditBook;

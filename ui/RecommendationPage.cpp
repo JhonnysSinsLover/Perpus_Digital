@@ -1,5 +1,6 @@
 #include "RecommendationPage.h"
 #include "BookCardWidget.h" // Pastikan file ini ada (dari fitur Koleksi Buku)
+#include "BookPreviewDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -169,11 +170,15 @@ void RecommendationPage::createContentSection(QVBoxLayout* contentLayout)
     m_lblResultStatus->setVisible(false);
     contentLayout->addWidget(m_lblResultStatus);
 
-    // Container Grid
-    m_resultGrid = new QGridLayout();
+    // Container untuk Grid (dengan widget agar bisa di-layout dengan benar)
+    QWidget* gridContainer = new QWidget(this);
+    gridContainer->setStyleSheet("background: transparent;");
+    m_resultGrid = new QGridLayout(gridContainer);
     m_resultGrid->setSpacing(20);
+    m_resultGrid->setContentsMargins(0, 0, 0, 0);
     m_resultGrid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    contentLayout->addLayout(m_resultGrid);
+    
+    contentLayout->addWidget(gridContainer);
 
     // Connects
     connect(m_btnGetRec, &QPushButton::clicked, this, &RecommendationPage::onGetRecommendations);
@@ -233,7 +238,17 @@ void RecommendationPage::onGetRecommendations()
         return;
     }
     
-    // 2. Logika Graph: Dapatkan Tetangga (Rekomendasi)
+    // 2. TAMPILKAN BUKU YANG DICARI TERLEBIH DAHULU
+    m_lblResultStatus->setText(QString("🔍 Buku yang Anda cari:"));
+    m_lblResultStatus->setStyleSheet("color: #2B3674; font-weight: 700; font-size: 18px; margin-bottom: 10px;");
+    m_lblResultStatus->setVisible(true);
+    
+    // Tampilkan buku yang dicari
+    std::vector<Book> searchedBook;
+    searchedBook.push_back(*targetBook);
+    displayRecommendations(searchedBook);
+    
+    // 3. Logika Graph: Dapatkan Tetangga (Rekomendasi)
     QStringList genres = targetBook->getGenre();
     std::vector<Book> recommendations;
     
@@ -244,7 +259,7 @@ void RecommendationPage::onGetRecommendations()
         recommendations = m_genreGraph->getRecommendation(triggerGenre, allBooks, 2);
     }
     
-    // 3. FILTER: Hapus buku yang sama dengan input dari rekomendasi
+    // 4. FILTER: Hapus buku yang sama dengan input dari rekomendasi
     std::vector<Book> filteredRecommendations;
     int maxRecommendations = 10; // Maksimal 10 rekomendasi
     int count = 0;
@@ -257,58 +272,136 @@ void RecommendationPage::onGetRecommendations()
         }
     }
     
-    // 4. Tampilkan Hasil
-    if (filteredRecommendations.empty()) {
-        m_lblResultStatus->setText(QString("📭 Tidak ada rekomendasi lain untuk genre '%1'.").arg(triggerGenre));
-        m_lblResultStatus->setStyleSheet("color: #A3AED0; font-weight: bold; font-size: 16px;");
-        m_lblResultStatus->setVisible(true);
-    } else {
-        // Update Status Label
-        m_lblResultStatus->setText(QString("📚 Karena Anda menyukai '%1' (%2), kami rekomendasikan %3 buku:")
-                                   .arg(targetBook->getJudul())
-                                   .arg(triggerGenre)
-                                   .arg(filteredRecommendations.size()));
-        m_lblResultStatus->setStyleSheet("color: #2B3674; font-weight: 700; font-size: 18px;");
-        m_lblResultStatus->setVisible(true);
+    // 5. TAMBAHKAN LABEL UNTUK REKOMENDASI
+    if (!filteredRecommendations.empty()) {
+        // Buat label "Berikut beberapa buku yang direkomendasikan"
+        QLabel* recLabel = new QLabel(QString("💡 Berikut beberapa buku yang direkomendasikan untuk Anda baca:"), this);
+        recLabel->setStyleSheet("color: #4318FF; font-weight: 700; font-size: 16px; margin-top: 20px; margin-bottom: 10px;");
+        recLabel->setWordWrap(true);
         
-        displayRecommendations(filteredRecommendations);
+        // Tambahkan label ke grid (spanning seluruh kolom)
+        int currentRow = m_resultGrid->rowCount();
+        m_resultGrid->addWidget(recLabel, currentRow, 0, 1, -1); // Span all columns
+        
+        // 6. Tampilkan buku-buku rekomendasi
+        displayRecommendedBooks(filteredRecommendations, currentRow + 1);
+    } else {
+        // Jika tidak ada rekomendasi
+        QLabel* noRecLabel = new QLabel(QString("📭 Tidak ada rekomendasi lain untuk genre '%1'.").arg(triggerGenre), this);
+        noRecLabel->setStyleSheet("color: #A3AED0; font-weight: bold; font-size: 16px; margin-top: 20px;");
+        noRecLabel->setWordWrap(true);
+        
+        int currentRow = m_resultGrid->rowCount();
+        m_resultGrid->addWidget(noRecLabel, currentRow, 0, 1, -1);
     }
 }
 
 void RecommendationPage::displayRecommendations(const std::vector<Book>& books)
 {
-    // LOGIKA GRID RESPONSIVE (Sama seperti BooksCollectionPage)
-    // Agar kartu tidak melar aneh jika cuma ada 1 hasil.
+    // LOGIKA GRID RESPONSIVE - SAMA SEPERTI BooksCollectionPage
+    // Agar kartu memenuhi 1 baris dengan benar
     
-    int viewportWidth = this->width(); // Perkiraan lebar
+    int viewportWidth = this->width() - 60; // Kurangi padding
+    if (viewportWidth <= 0) viewportWidth = 1000;
+    
     int minCardWidth = 220; 
     int spacing = 20;
 
-    // Reset Grid Columns Stretch
+    // Reset Grid Columns Stretch terlebih dahulu
     for (int i = 0; i < m_resultGrid->columnCount(); ++i) {
         m_resultGrid->setColumnStretch(i, 0);
     }
 
-    // Hitung kapasitas kolom (misal: layar muat 4 kolom)
-    int numCols = (viewportWidth - 60) / (minCardWidth + spacing);
+    // Hitung berapa kolom yang muat
+    int numCols = (viewportWidth + spacing) / (minCardWidth + spacing);
     if (numCols < 1) numCols = 1;
 
-    // Paksa Grid punya 'numCols' slot agar layout konsisten
+    // KUNCI: Paksa Grid membuat slot untuk SEMUA kolom dengan stretch factor 1
+    // Ini memastikan pembagian ruang jadi rata
     for (int i = 0; i < numCols; ++i) {
         m_resultGrid->setColumnStretch(i, 1);
     }
 
-    // Render Kartu
+    m_resultGrid->setVerticalSpacing(spacing);
+    m_resultGrid->setHorizontalSpacing(spacing);
+
+    // Render Kartu - mulai dari row 0
     for (int i = 0; i < books.size(); ++i) {
-        // Menggunakan BookCardWidget (Reusability)
-        BookCardWidget* card = new BookCardWidget(books[i], this);
+        // Sembunyikan tombol edit/delete di halaman rekomendasi
+        BookCardWidget* card = new BookCardWidget(books[i], this, false);
         
-        // Setup Size Policy agar mengisi slot grid
+        // Tetap gunakan Expanding agar mengisi celah kecil
         card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        
+        // Batasi lebar maksimal agar tidak terlalu gepeng
+        card->setMaximumWidth(400);
+        
+        // Connect preview signal
+        connect(card, &BookCardWidget::previewRequested, this, &RecommendationPage::onPreviewBook);
         
         int row = i / numCols;
         int col = i % numCols;
         
         m_resultGrid->addWidget(card, row, col);
     }
+}
+
+void RecommendationPage::displayRecommendedBooks(const std::vector<Book>& books, int startRow)
+{
+    // Tampilkan buku-buku rekomendasi mulai dari row tertentu
+    // Gunakan logika yang SAMA dengan displayRecommendations
+    
+    int viewportWidth = this->width() - 60;
+    if (viewportWidth <= 0) viewportWidth = 1000;
+    
+    int minCardWidth = 220; 
+    int spacing = 20;
+
+    int numCols = (viewportWidth + spacing) / (minCardWidth + spacing);
+    if (numCols < 1) numCols = 1;
+
+    // Render Kartu rekomendasi
+    for (int i = 0; i < books.size(); ++i) {
+        // Sembunyikan tombol edit/delete di halaman rekomendasi
+        BookCardWidget* card = new BookCardWidget(books[i], this, false);
+        card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        card->setMaximumWidth(400);
+        
+        // Connect preview signal
+        connect(card, &BookCardWidget::previewRequested, this, &RecommendationPage::onPreviewBook);
+        
+        int row = startRow + (i / numCols);
+        int col = i % numCols;
+        
+        m_resultGrid->addWidget(card, row, col);
+    }
+}
+
+void RecommendationPage::onPreviewBook(int bookId)
+{
+    DatabaseManager& dbManager = DatabaseManager::instance();
+    Book book = dbManager.getBookById(bookId);
+    
+    if (book.getId() == -1) {
+        QMessageBox::warning(this, "Error", "Buku tidak ditemukan.");
+        return;
+    }
+    
+    BookPreviewDialog* dialog = new BookPreviewDialog(book, this);
+    
+    // Connect signal borrow dari dialog
+    connect(dialog, &BookPreviewDialog::bookBorrowed, this, [this](int bookId, const QString& borrowerName) {
+        DatabaseManager& dbManager = DatabaseManager::instance();
+        BookManager& bookManager = dbManager.getBookManager();
+        
+        if (bookManager.addToBorrowQueue(borrowerName, bookId)) {
+            QMessageBox::information(this, "Berhasil", 
+                QString("Buku berhasil ditambahkan ke antrian peminjaman untuk: %1").arg(borrowerName));
+        } else {
+            QMessageBox::warning(this, "Gagal", "Gagal menambahkan ke antrian peminjaman.");
+        }
+    });
+    
+    dialog->exec();
+    delete dialog;
 }
