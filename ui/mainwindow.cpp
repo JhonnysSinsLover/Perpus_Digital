@@ -215,7 +215,7 @@ void MainWindow::createSidebar()
     QLabel* titleLabel = new QLabel("Perpustakaan\nDigital", this);
     titleLabel->setStyleSheet(
         "color: white; "
-        "font-size: 16px; "
+        "font-size: 14px; "
         "font-weight: bold; "
         "border: none;"
         "line-height: 1.3;"
