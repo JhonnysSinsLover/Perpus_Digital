@@ -65,17 +65,41 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
     
-    // Build genre graph and update pages
+    // === AUTO-INITIALIZE DATA STRUCTURES ===
+    // Build genre graph and initialize all data structures
     if (!existingBooks.empty()) {
+        qDebug() << "\n=== AUTO-INITIALIZING DATA STRUCTURES ===";
+        
+        // 1. Build Graph for Recommendations (Graph Connectivity)
         m_genreGraph.buildGraph(existingBooks);
+        qDebug() << "✓ Graph built with" << m_genreGraph.getNodeCount() << "genre nodes";
+        
+        // 2. Build BST for fast searching (Binary Search Tree)
+        dbManager.getBookManager().buildBST();
+        qDebug() << "✓ BST built for" << existingBooks.size() << "books";
+        
+        qDebug() << "=== DATA STRUCTURES READY ===";
+        qDebug() << "  - Graph (Recommendations): Ready";
+        qDebug() << "  - BST (Search): Ready";
+        qDebug() << "  - Priority Queue (Popular Books): Ready";
+        qDebug() << "  - Queue (Borrow Requests): Ready";
+        qDebug() << "  - Stack (Undo Delete): Ready\n";
         
         // Update all pages
         if (m_dashboardPage) m_dashboardPage->updateDashboard();
         if (m_collectionPage) m_collectionPage->refreshTable();
         if (m_statisticsPage) m_statisticsPage->updateStatistics();
         
-        updateStatusBar(QString("📚 Loaded %1 books from database").arg(existingBooks.size()));
-        showSuccessMessage("Database Ready", QString("Successfully loaded %1 books from database!").arg(existingBooks.size()));
+        updateStatusBar(QString("📚 Loaded %1 books - All data structures initialized").arg(existingBooks.size()));
+        showSuccessMessage("System Ready", 
+            QString("Successfully loaded %1 books!\n\n"
+                    "✓ Graph (Recommendations)\n"
+                    "✓ BST (Fast Search)\n"
+                    "✓ Priority Queue (Popular Books)\n"
+                    "✓ Queue (Borrow Requests)\n"
+                    "✓ Stack (Undo Delete)").arg(existingBooks.size()));
+    } else {
+        qDebug() << "⚠ Warning: No books loaded. Data structures not initialized.";
     }
 }
 
@@ -471,18 +495,23 @@ void MainWindow::onLoadData()
     if (dbManager.importFromJson(fileName)) {
         m_currentDataPath = fileName;
         std::vector<Book> books = dbManager.getAllBooks();
+        
+        // Rebuild all data structures after import
+        qDebug() << "[MainWindow] Rebuilding data structures after import...";
         m_genreGraph.buildGraph(books);
+        dbManager.getBookManager().buildBST();
+        qDebug() << "[MainWindow] All structures rebuilt with" << books.size() << "books";
         
         // Update all pages
         m_dashboardPage->updateDashboard();
         m_collectionPage->refreshTable();
         m_statisticsPage->updateStatistics();
         
-        updateStatusBar(QString("Imported %1 books from %2")
+        updateStatusBar(QString("Imported %1 books from %2 - Structures rebuilt")
                        .arg(books.size())
                        .arg(QFileInfo(fileName).fileName()));
         showSuccessMessage("Success", 
-                          QString("Successfully imported %1 books into database!")
+                          QString("Successfully imported %1 books!\n\nAll data structures have been rebuilt.")
                           .arg(books.size()));
     } else {
         showErrorMessage("Error", "Failed to import data from file!");
@@ -518,10 +547,27 @@ void MainWindow::onSaveData()
 
 void MainWindow::onRefreshData()
 {
+    DatabaseManager& dbManager = DatabaseManager::instance();
+    std::vector<Book> allBooks = dbManager.getAllBooks();
+    
+    if (!allBooks.empty()) {
+        // Rebuild all data structures
+        qDebug() << "[MainWindow] Refreshing data structures...";
+        
+        // Rebuild Graph
+        m_genreGraph.buildGraph(allBooks);
+        
+        // Rebuild BST
+        dbManager.getBookManager().buildBST();
+        
+        qDebug() << "[MainWindow] Data structures rebuilt -" << allBooks.size() << "books";
+    }
+    
+    // Update UI pages
     m_dashboardPage->updateDashboard();
     m_collectionPage->refreshTable();
     m_statisticsPage->updateStatistics();
-    updateStatusBar("Data refreshed");
+    updateStatusBar(QString("Data refreshed - %1 books, structures rebuilt").arg(allBooks.size()));
 }
 
 void MainWindow::applyStyles()
