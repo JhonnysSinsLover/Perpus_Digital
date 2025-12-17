@@ -1,4 +1,6 @@
 #include "RecommendationPage.h"
+#include "BookCardWidget.h" // Pastikan file ini ada (dari fitur Koleksi Buku)
+#include "BookPreviewDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -6,13 +8,25 @@
 #include <QMessageBox>
 #include <QScrollArea>
 #include <QGraphicsDropShadowEffect>
-#include <QStyle>
+#include <QTimer>
 
 RecommendationPage::RecommendationPage(Graph* genreGraph, QWidget *parent)
     : QWidget(parent)
     , m_genreGraph(genreGraph)
 {
     setupUI();
+    
+    // Otomatis build graph saat halaman dibuat agar user tidak perlu klik manual
+    // Kecuali ada data baru, tombol manual tetap disediakan.
+    QTimer::singleShot(100, this, [this](){
+        if(m_genreGraph) {
+            std::vector<Book> allBooks = DatabaseManager::instance().getAllBooks();
+            if (!allBooks.empty()) {
+                m_genreGraph->buildGraph(allBooks);
+                qDebug() << "[RecommendationPage] Auto-built graph with" << allBooks.size() << "books";
+            }
+        }
+    });
 }
 
 RecommendationPage::~RecommendationPage()
@@ -34,7 +48,6 @@ void RecommendationPage::setupUI()
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     
-    // Background Abu-abu kebiruan (#F4F7FE)
     scrollArea->setStyleSheet(
         "QScrollArea { background-color: #F4F7FE; border: none; }"
         "QScrollBar:vertical { background: #F4F7FE; width: 8px; margin: 0px; }"
@@ -52,8 +65,7 @@ void RecommendationPage::setupUI()
     // 4. Content Section
     createContentSection(contentLayout);
 
-    contentLayout->addStretch();
-    
+    contentLayout->addStretch(); // Push content ke atas
     scrollArea->setWidget(contentWidget);
     mainLayout->addWidget(scrollArea);
 }
@@ -62,17 +74,14 @@ void RecommendationPage::createHeaderSection(QVBoxLayout* mainLayout)
 {
     QFrame* headerFrame = new QFrame(this);
     headerFrame->setFixedHeight(80);
-    headerFrame->setStyleSheet(
-        "QFrame { background-color: white; border-bottom: 1px solid #E0E5F2; }"
-    );
+    headerFrame->setStyleSheet("background-color: white; border-bottom: 1px solid #E0E5F2;");
     
     QHBoxLayout* headerLayout = new QHBoxLayout(headerFrame);
     headerLayout->setContentsMargins(30, 0, 30, 0);
     headerLayout->setSpacing(20);
     
-    // Ikon Lampu/Ide
     QLabel* iconLabel = new QLabel("💡", headerFrame);
-    iconLabel->setStyleSheet("font-size: 24px; background: transparent;");
+    iconLabel->setStyleSheet("font-size: 24px; background: transparent; border: none;");
     headerLayout->addWidget(iconLabel);
 
     QVBoxLayout* titleLayout = new QVBoxLayout();
@@ -80,271 +89,319 @@ void RecommendationPage::createHeaderSection(QVBoxLayout* mainLayout)
     titleLayout->setAlignment(Qt::AlignVCenter);
     
     QLabel* titleLabel = new QLabel("Rekomendasi Buku", headerFrame);
-    titleLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 24px; font-weight: 700; color: #2B3674; background: transparent;");
+    titleLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 22px; font-weight: 700; color: #2B3674; border: none;");
     
-    QLabel* subLabel = new QLabel("Temukan buku menarik lainnya berdasarkan kesamaan genre.", headerFrame);
-    subLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 13px; color: #A3AED0; background: transparent;");
+    QLabel* subLabel = new QLabel("Temukan buku menarik lainnya menggunakan algoritma Graph Connectivity.", headerFrame);
+    subLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 13px; color: #A3AED0; border: none;");
     
     titleLayout->addWidget(titleLabel);
     titleLayout->addWidget(subLabel);
     headerLayout->addLayout(titleLayout);
-    
     headerLayout->addStretch();
+    
     mainLayout->addWidget(headerFrame);
 }
 
 QFrame* RecommendationPage::createCardFrame()
 {
     QFrame* card = new QFrame(this);
-    card->setStyleSheet("background-color: white; border-radius: 16px;");
-    
-    // Drop Shadow
-    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(20);
-    shadow->setColor(QColor(0, 0, 0, 15));
-    shadow->setOffset(0, 4);
-    card->setGraphicsEffect(shadow);
-    
+    card->setStyleSheet("background-color: white; border-radius: 16px; border: 1px solid #E0E5F2;");
     return card;
 }
 
 void RecommendationPage::createContentSection(QVBoxLayout* contentLayout)
 {
-    // --- KARTU 1: INPUT PENCARIAN ---
+    // --- SECTION 1: SEARCH INPUT ---
     QFrame* inputCard = createCardFrame();
     QVBoxLayout* inputLayout = new QVBoxLayout(inputCard);
     inputLayout->setContentsMargins(30, 30, 30, 30);
     inputLayout->setSpacing(20);
     
-    // Header Input
-    QLabel* lblInputTitle = new QLabel("🔍 Cari Rekomendasi", inputCard);
-    lblInputTitle->setStyleSheet("font-family: 'Segoe UI'; font-size: 18px; font-weight: 700; color: #2B3674;");
+    QLabel* lblInputTitle = new QLabel("🔍 Cari Berdasarkan Buku Favorit", inputCard);
+    lblInputTitle->setStyleSheet("font-size: 16px; font-weight: 700; color: #2B3674; border: none;");
     inputLayout->addWidget(lblInputTitle);
     
-    // Search Bar & Button Row
     QHBoxLayout* searchRow = new QHBoxLayout();
     searchRow->setSpacing(15);
     
     m_bookTitleInput = new QLineEdit(inputCard);
-    m_bookTitleInput->setPlaceholderText("Ketik judul buku favoritmu...");
+    m_bookTitleInput->setPlaceholderText("Ketik judul buku (misal: 'Bumi Manusia')...");
     m_bookTitleInput->setFixedHeight(45);
-    // Style Input Modern (Border Jelas)
     m_bookTitleInput->setStyleSheet(
         "QLineEdit {"
         "   background-color: white;"
-        "   border: 1px solid #94A3B8;" /* Border Slate Grey */
+        "   border: 1px solid #94A3B8;"
         "   border-radius: 10px;"
         "   padding: 0 15px;"
         "   font-size: 14px;"
         "   color: #2B3674;"
-        "   font-family: 'Segoe UI';"
         "}"
-        "QLineEdit:focus {"
-        "   border: 2px solid #4318FF;"
-        "   background-color: #FDFDFD;"
-        "}"
+        "QLineEdit:focus { border: 2px solid #4318FF; }"
     );
     
-    m_btnGetRec = new QPushButton("Dapatkan Rekomendasi", inputCard);
+    m_btnGetRec = new QPushButton("Analisa Graph", inputCard);
     m_btnGetRec->setCursor(Qt::PointingHandCursor);
-    m_btnGetRec->setFixedSize(200, 45);
+    m_btnGetRec->setFixedSize(160, 45);
     m_btnGetRec->setStyleSheet(
         "QPushButton { background-color: #4318FF; color: white; border-radius: 10px; font-weight: bold; font-size: 14px; border: none; }"
         "QPushButton:hover { background-color: #3311DB; }"
-        "QPushButton:pressed { background-color: #2108B7; }"
     );
     
     searchRow->addWidget(m_bookTitleInput);
     searchRow->addWidget(m_btnGetRec);
     inputLayout->addLayout(searchRow);
     
-    // Build Graph Option
+    // Info & Refresh Graph
     QHBoxLayout* optionRow = new QHBoxLayout();
-    QLabel* lblInfo = new QLabel("Tips: Pastikan Graph Database sudah dibangun agar hasil akurat.", inputCard);
-    lblInfo->setStyleSheet("color: #A3AED0; font-size: 12px; font-style: italic;");
-    
-    m_btnBuildGraph = new QPushButton("🔄 Re-Build Graph Database", inputCard);
+    m_btnBuildGraph = new QPushButton("⚡ Refresh Graph Data", inputCard);
     m_btnBuildGraph->setCursor(Qt::PointingHandCursor);
-    m_btnBuildGraph->setFixedSize(180, 35);
-    m_btnBuildGraph->setStyleSheet(
-        "QPushButton { background-color: #F4F7FE; color: #4318FF; border: 1px solid #E0E5F2; border-radius: 8px; font-weight: 600; font-size: 12px; }"
-        "QPushButton:hover { border: 1px solid #4318FF; background-color: #EAEFFC; }"
-    );
+    m_btnBuildGraph->setStyleSheet("QPushButton { color: #A3AED0; font-weight: 600; border: none; text-align: left; } QPushButton:hover { color: #4318FF; }");
     
-    optionRow->addWidget(lblInfo);
-    optionRow->addStretch();
     optionRow->addWidget(m_btnBuildGraph);
+    optionRow->addStretch();
     inputLayout->addLayout(optionRow);
     
     contentLayout->addWidget(inputCard);
 
-    // --- KARTU 2: HASIL REKOMENDASI ---
-    QFrame* resultsCard = createCardFrame();
-    QVBoxLayout* resultsLayout = new QVBoxLayout(resultsCard);
-    resultsLayout->setContentsMargins(30, 30, 30, 30);
-    resultsLayout->setSpacing(15);
-    
-    QLabel* lblResultTitle = new QLabel("🎯 Hasil Rekomendasi", resultsCard);
-    lblResultTitle->setStyleSheet("font-family: 'Segoe UI'; font-size: 18px; font-weight: 700; color: #2B3674;");
-    resultsLayout->addWidget(lblResultTitle);
-    
-    m_resultsBrowser = new QTextBrowser(resultsCard);
-    m_resultsBrowser->setMinimumHeight(450);
-    // Hilangkan border default QTextBrowser agar menyatu dengan card
-    m_resultsBrowser->setStyleSheet("QTextBrowser { border: none; background-color: transparent; }");
-    m_resultsBrowser->setOpenExternalLinks(false);
-    
-    // Default Empty State HTML
-    m_resultsBrowser->setHtml(
-        "<div style='text-align: center; margin-top: 50px; font-family: Segoe UI;'>"
-        "  <div style='font-size: 40px; margin-bottom: 20px;'>📚</div>"
-        "  <div style='font-size: 18px; font-weight: bold; color: #A3AED0;'>Belum ada hasil</div>"
-        "  <div style='font-size: 14px; color: #D0D5DD;'>Masukkan judul buku di atas untuk mulai mencari.</div>"
-        "</div>"
-    );
-    
-    resultsLayout->addWidget(m_resultsBrowser);
-    contentLayout->addWidget(resultsCard);
+    // --- SECTION 2: RESULTS GRID ---
+    // Label Status Hasil
+    m_lblResultStatus = new QLabel("", this);
+    m_lblResultStatus->setStyleSheet("font-size: 16px; font-weight: 700; color: #2B3674; margin-top: 10px; margin-bottom: 5px;");
+    m_lblResultStatus->setVisible(false);
+    contentLayout->addWidget(m_lblResultStatus);
 
-    // Connect signals
+    // Container untuk Grid (dengan widget agar bisa di-layout dengan benar)
+    QWidget* gridContainer = new QWidget(this);
+    gridContainer->setStyleSheet("background: transparent;");
+    m_resultGrid = new QGridLayout(gridContainer);
+    m_resultGrid->setSpacing(20);
+    m_resultGrid->setContentsMargins(0, 0, 0, 0);
+    m_resultGrid->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    
+    contentLayout->addWidget(gridContainer);
+
+    // Connects
     connect(m_btnGetRec, &QPushButton::clicked, this, &RecommendationPage::onGetRecommendations);
     connect(m_btnBuildGraph, &QPushButton::clicked, this, &RecommendationPage::onBuildGraph);
-    
-    // Trigger search on Enter key
     connect(m_bookTitleInput, &QLineEdit::returnPressed, this, &RecommendationPage::onGetRecommendations);
 }
 
 void RecommendationPage::onBuildGraph()
 {
     if (!m_genreGraph) return;
-
     DatabaseManager& dbManager = DatabaseManager::instance();
     m_genreGraph->buildGraph(dbManager.getAllBooks());
-    
-    QMessageBox::information(this, "✅ Berhasil",
-                            "Graph database berhasil diperbarui!\n"
-                            "Algoritma siap memberikan rekomendasi.");
+    QMessageBox::information(this, "Success", "Graph Connectivity berhasil dibangun ulang!");
+}
+
+void RecommendationPage::clearRecommendationGrid()
+{
+    QLayoutItem* item;
+    while ((item = m_resultGrid->takeAt(0)) != nullptr) {
+        if (item->widget()) delete item->widget();
+        delete item;
+    }
+    m_lblResultStatus->setVisible(false);
 }
 
 void RecommendationPage::onGetRecommendations()
 {
     QString bookTitle = m_bookTitleInput->text().trimmed();
+    clearRecommendationGrid(); // Bersihkan hasil sebelumnya
     
     if (bookTitle.isEmpty()) {
         QMessageBox::warning(this, "Input Kosong", "Silakan masukkan judul buku terlebih dahulu.");
-        m_bookTitleInput->setFocus();
         return;
     }
     
-    if (!m_genreGraph) {
-        QMessageBox::warning(this, "Error", "Graph belum diinisialisasi!");
-        return;
-    }
+    if (!m_genreGraph) return;
     
-    // Find the book
-    Book* targetBook = nullptr;
+    // 1. Cari Buku Sumber di Database
     DatabaseManager& dbManager = DatabaseManager::instance();
     std::vector<Book> allBooks = dbManager.getAllBooks();
-    for (Book& book : allBooks) {
-        if (book.getJudul().contains(bookTitle, Qt::CaseInsensitive)) {
-            targetBook = &book;
+    Book* targetBook = nullptr;
+    int targetBookIndex = -1;
+    
+    for (size_t i = 0; i < allBooks.size(); i++) {
+        if (allBooks[i].getJudul().compare(bookTitle, Qt::CaseInsensitive) == 0 || 
+            allBooks[i].getJudul().contains(bookTitle, Qt::CaseInsensitive)) {
+            targetBook = &allBooks[i];
+            targetBookIndex = i;
             break;
         }
     }
     
     if (!targetBook) {
-        m_resultsBrowser->setHtml(
-            "<div style='text-align: center; margin-top: 50px; font-family: Segoe UI;'>"
-            "  <div style='font-size: 40px; margin-bottom: 20px;'>❌</div>"
-            "  <div style='font-size: 18px; font-weight: bold; color: #EE5D50;'>Buku tidak ditemukan</div>"
-            "  <div style='font-size: 14px; color: #A3AED0;'>Pastikan ejaan judul buku sudah benar.</div>"
-            "</div>"
-        );
+        m_lblResultStatus->setText("❌ Buku tidak ditemukan dalam database.");
+        m_lblResultStatus->setStyleSheet("color: #EE5D50; font-weight: bold; font-size: 16px;");
+        m_lblResultStatus->setVisible(true);
         return;
     }
     
-    // Get recommendations
+    // 2. TAMPILKAN BUKU YANG DICARI TERLEBIH DAHULU
+    m_lblResultStatus->setText(QString("🔍 Buku yang Anda cari:"));
+    m_lblResultStatus->setStyleSheet("color: #2B3674; font-weight: 700; font-size: 18px; margin-bottom: 10px;");
+    m_lblResultStatus->setVisible(true);
+    
+    // Tampilkan buku yang dicari
+    std::vector<Book> searchedBook;
+    searchedBook.push_back(*targetBook);
+    displayRecommendations(searchedBook);
+    
+    // 3. Logika Graph: Dapatkan Tetangga (Rekomendasi)
     QStringList genres = targetBook->getGenre();
     std::vector<Book> recommendations;
     
+    QString triggerGenre = "Tidak Spesifik";
     if (!genres.isEmpty()) {
-        QString primaryGenre = genres.first();
-        recommendations = m_genreGraph->getRecommendation(primaryGenre, allBooks, 5);
+        triggerGenre = genres.first(); // Menggunakan genre utama sebagai node penghubung
+        // Mengambil rekomendasi dengan maxDepth=2 (hingga 2 level koneksi graph)
+        recommendations = m_genreGraph->getRecommendation(triggerGenre, allBooks, 2);
     }
     
-    // --- GENERATE MODERN HTML RESULT ---
-    QString html = R"(
-        <html>
-        <head>
-            <style>
-                body { font-family: 'Segoe UI', sans-serif; color: #2B3674; }
-                .header-box {
-                    background-color: #EAEFFC; 
-                    border-radius: 12px; 
-                    padding: 15px; 
-                    border-left: 5px solid #4318FF;
-                    margin-bottom: 25px;
-                }
-                .rec-card {
-                    background-color: #F8F9FC;
-                    border: 1px solid #E0E5F2;
-                    border-radius: 10px;
-                    padding: 15px;
-                    margin-bottom: 10px;
-                }
-                .rec-title { font-size: 16px; font-weight: bold; color: #2B3674; margin-bottom: 5px; }
-                .rec-meta { font-size: 12px; color: #A3AED0; }
-                .badge {
-                    background-color: #05CD99; color: white;
-                    padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;
-                }
-                .rating { color: #FFB547; font-weight: bold; }
-            </style>
-        </head>
-        <body>
-    )";
+    // 4. FILTER: Hapus buku yang sama dengan input dari rekomendasi
+    std::vector<Book> filteredRecommendations;
+    int maxRecommendations = 10; // Maksimal 10 rekomendasi
+    int count = 0;
     
-    // 1. Header Info Buku Sumber
-    html += QString(
-        "<div class='header-box'>"
-        "  <div style='font-size: 12px; color: #A3AED0; margin-bottom: 4px;'>Berdasarkan buku:</div>"
-        "  <div style='font-size: 20px; font-weight: bold;'>%1</div>"
-        "  <div style='font-size: 13px; margin-top: 5px;'>Penulis: <b>%2</b> &nbsp;|&nbsp; Genre: <span style='color: #4318FF;'>%3</span></div>"
-        "</div>"
-    ).arg(targetBook->getJudul())
-     .arg(targetBook->getPenulis())
-     .arg(targetBook->getGenre().join(", "));
-    
-    // 2. List Rekomendasi
-    if (recommendations.empty()) {
-        html += "<div style='color: #A3AED0; text-align: center; margin-top: 20px;'>Tidak ada rekomendasi lain yang mirip saat ini.</div>";
-    } else {
-        html += QString("<div style='margin-bottom: 15px; font-weight: bold; font-size: 16px;'>🎯 %1 Rekomendasi Teratas:</div>").arg(recommendations.size());
-        
-        int count = 1;
-        for (const Book& book : recommendations) {
-            html += QString(
-                "<div class='rec-card'>"
-                "  <table width='100%' cellpadding='0' cellspacing='0'>"
-                "    <tr>"
-                "      <td width='30' valign='top' style='font-size: 20px; font-weight: bold; color: #E0E5F2;'>#%1</td>"
-                "      <td>"
-                "        <div class='rec-title'>%2</div>"
-                "        <div class='rec-meta'>✍️ %3 &nbsp;&nbsp; 📅 %4 &nbsp;&nbsp; <span class='rating'>⭐ %5</span></div>"
-                "        <div style='margin-top: 8px;'><span class='badge'>%6</span></div>"
-                "      </td>"
-                "    </tr>"
-                "  </table>"
-                "</div>"
-            ).arg(count++)
-             .arg(book.getJudul())
-             .arg(book.getPenulis())
-             .arg(book.getTahun())
-             .arg(book.getRating(), 0, 'f', 1)
-             .arg(book.getGenre().join(", "));
+    for (const Book& book : recommendations) {
+        // Skip buku yang sama dengan buku input
+        if (book.getId() != targetBook->getId() && count < maxRecommendations) {
+            filteredRecommendations.push_back(book);
+            count++;
         }
     }
     
-    html += "</body></html>";
-    m_resultsBrowser->setHtml(html);
+    // 5. TAMBAHKAN LABEL UNTUK REKOMENDASI
+    if (!filteredRecommendations.empty()) {
+        // Buat label "Berikut beberapa buku yang direkomendasikan"
+        QLabel* recLabel = new QLabel(QString("💡 Berikut beberapa buku yang direkomendasikan untuk Anda baca:"), this);
+        recLabel->setStyleSheet("color: #4318FF; font-weight: 700; font-size: 16px; margin-top: 20px; margin-bottom: 10px;");
+        recLabel->setWordWrap(true);
+        
+        // Tambahkan label ke grid (spanning seluruh kolom)
+        int currentRow = m_resultGrid->rowCount();
+        m_resultGrid->addWidget(recLabel, currentRow, 0, 1, -1); // Span all columns
+        
+        // 6. Tampilkan buku-buku rekomendasi
+        displayRecommendedBooks(filteredRecommendations, currentRow + 1);
+    } else {
+        // Jika tidak ada rekomendasi
+        QLabel* noRecLabel = new QLabel(QString("📭 Tidak ada rekomendasi lain untuk genre '%1'.").arg(triggerGenre), this);
+        noRecLabel->setStyleSheet("color: #A3AED0; font-weight: bold; font-size: 16px; margin-top: 20px;");
+        noRecLabel->setWordWrap(true);
+        
+        int currentRow = m_resultGrid->rowCount();
+        m_resultGrid->addWidget(noRecLabel, currentRow, 0, 1, -1);
+    }
+}
+
+void RecommendationPage::displayRecommendations(const std::vector<Book>& books)
+{
+    // LOGIKA GRID RESPONSIVE - SAMA SEPERTI BooksCollectionPage
+    // Agar kartu memenuhi 1 baris dengan benar
+    
+    int viewportWidth = this->width() - 60; // Kurangi padding
+    if (viewportWidth <= 0) viewportWidth = 1000;
+    
+    int minCardWidth = 220; 
+    int spacing = 20;
+
+    // Reset Grid Columns Stretch terlebih dahulu
+    for (int i = 0; i < m_resultGrid->columnCount(); ++i) {
+        m_resultGrid->setColumnStretch(i, 0);
+    }
+
+    // Hitung berapa kolom yang muat
+    int numCols = (viewportWidth + spacing) / (minCardWidth + spacing);
+    if (numCols < 1) numCols = 1;
+
+    // KUNCI: Paksa Grid membuat slot untuk SEMUA kolom dengan stretch factor 1
+    // Ini memastikan pembagian ruang jadi rata
+    for (int i = 0; i < numCols; ++i) {
+        m_resultGrid->setColumnStretch(i, 1);
+    }
+
+    m_resultGrid->setVerticalSpacing(spacing);
+    m_resultGrid->setHorizontalSpacing(spacing);
+
+    // Render Kartu - mulai dari row 0
+    for (int i = 0; i < books.size(); ++i) {
+        // Sembunyikan tombol edit/delete di halaman rekomendasi
+        BookCardWidget* card = new BookCardWidget(books[i], this, false);
+        
+        // Tetap gunakan Expanding agar mengisi celah kecil
+        card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        
+        // Batasi lebar maksimal agar tidak terlalu gepeng
+        card->setMaximumWidth(400);
+        
+        // Connect preview signal
+        connect(card, &BookCardWidget::previewRequested, this, &RecommendationPage::onPreviewBook);
+        
+        int row = i / numCols;
+        int col = i % numCols;
+        
+        m_resultGrid->addWidget(card, row, col);
+    }
+}
+
+void RecommendationPage::displayRecommendedBooks(const std::vector<Book>& books, int startRow)
+{
+    // Tampilkan buku-buku rekomendasi mulai dari row tertentu
+    // Gunakan logika yang SAMA dengan displayRecommendations
+    
+    int viewportWidth = this->width() - 60;
+    if (viewportWidth <= 0) viewportWidth = 1000;
+    
+    int minCardWidth = 220; 
+    int spacing = 20;
+
+    int numCols = (viewportWidth + spacing) / (minCardWidth + spacing);
+    if (numCols < 1) numCols = 1;
+
+    // Render Kartu rekomendasi
+    for (int i = 0; i < books.size(); ++i) {
+        // Sembunyikan tombol edit/delete di halaman rekomendasi
+        BookCardWidget* card = new BookCardWidget(books[i], this, false);
+        card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        card->setMaximumWidth(400);
+        
+        // Connect preview signal
+        connect(card, &BookCardWidget::previewRequested, this, &RecommendationPage::onPreviewBook);
+        
+        int row = startRow + (i / numCols);
+        int col = i % numCols;
+        
+        m_resultGrid->addWidget(card, row, col);
+    }
+}
+
+void RecommendationPage::onPreviewBook(int bookId)
+{
+    DatabaseManager& dbManager = DatabaseManager::instance();
+    Book book = dbManager.getBookById(bookId);
+    
+    if (book.getId() == -1) {
+        QMessageBox::warning(this, "Error", "Buku tidak ditemukan.");
+        return;
+    }
+    
+    BookPreviewDialog* dialog = new BookPreviewDialog(book, this);
+    
+    // Connect signal borrow dari dialog
+    connect(dialog, &BookPreviewDialog::bookBorrowed, this, [this](int bookId, const QString& borrowerName) {
+        DatabaseManager& dbManager = DatabaseManager::instance();
+        BookManager& bookManager = dbManager.getBookManager();
+        
+        if (bookManager.addToBorrowQueue(borrowerName, bookId)) {
+            QMessageBox::information(this, "Berhasil", 
+                QString("Buku berhasil ditambahkan ke antrian peminjaman untuk: %1").arg(borrowerName));
+        } else {
+            QMessageBox::warning(this, "Gagal", "Gagal menambahkan ke antrian peminjaman.");
+        }
+    });
+    
+    dialog->exec();
+    delete dialog;
 }

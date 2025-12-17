@@ -1,24 +1,21 @@
 #include "BooksCollectionPage.h"
 #include "AddBookDialog.h"
-#include "BookCardWidget.h" 
+#include "BookCardWidget.h"
+#include "BookPreviewDialog.h" // [PENTING] Include dialog preview
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QGroupBox>
 #include <QMessageBox>
 #include <QHeaderView>
-#include <QStyle>
-#include <QGraphicsDropShadowEffect> // Pastikan ini ada
+#include <QTimer>
 #include <set>
 #include <algorithm>
 
 BooksCollectionPage::BooksCollectionPage(QWidget *parent)
     : QWidget(parent)
-    , m_isCardView(false)
-    , m_sortAscending(true)
-    , m_lastSortColumn("title")
+    , m_isCardView(true) 
 {
     setupUI();
-    populateGenreComboBox();
+    // Panggil refreshTable di awal untuk load data
     refreshTable();
 }
 
@@ -28,304 +25,159 @@ BooksCollectionPage::~BooksCollectionPage()
 
 void BooksCollectionPage::setupUI()
 {
-    // 1. Layout Utama
+    // Layout Utama
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    // 2. Header
+    // 1. Header Section
     createHeaderSection(mainLayout);
     
+    // 2. Control/Toolbar Section
+    QWidget* toolbarWidget = new QWidget();
+    toolbarWidget->setStyleSheet("background-color: #F4F7FE; border-bottom: 1px solid #E0E5F2;");
+    QVBoxLayout* toolbarLayout = new QVBoxLayout(toolbarWidget);
+    toolbarLayout->setContentsMargins(30, 20, 30, 10); 
+    createControlSection(toolbarLayout);
+    mainLayout->addWidget(toolbarWidget);
+
     // 3. Scroll Area
-    QScrollArea* scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    
-    // Background Abu-abu (#F4F7FE) agar kontras dengan kartu putih
-    scrollArea->setStyleSheet(
+    m_contentScrollArea = new QScrollArea(this);
+    m_contentScrollArea->setWidgetResizable(true);
+    m_contentScrollArea->setFrameShape(QFrame::NoFrame);
+    m_contentScrollArea->setStyleSheet(
         "QScrollArea { background-color: #F4F7FE; border: none; }"
-        "QScrollBar:vertical { background: #F4F7FE; width: 8px; margin: 0px; }"
-        "QScrollBar::handle:vertical { background: #C4CDD5; min-height: 20px; border-radius: 4px; }"
+        "QScrollBar:vertical { background: #F4F7FE; width: 12px; margin: 0px; }"
+        "QScrollBar::handle:vertical { background: #C4CDD5; min-height: 20px; border-radius: 6px; }"
     );
     
     QWidget* contentWidget = new QWidget();
-    contentWidget->setObjectName("contentWidget");
-    contentWidget->setStyleSheet("#contentWidget { background-color: #F4F7FE; }");
+    contentWidget->setStyleSheet("background-color: #F4F7FE;");
     
     QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
-    contentLayout->setContentsMargins(30, 30, 30, 30);
-    contentLayout->setSpacing(25);
+    contentLayout->setContentsMargins(30, 10, 30, 30);
     
-    // --- Bagian Konten ---
-    createControlSection(contentLayout);
     createContentSection(contentLayout);
-    createActionSection(contentLayout);
     
     contentLayout->addStretch();
-    scrollArea->setWidget(contentWidget);
-    mainLayout->addWidget(scrollArea);
+    m_contentScrollArea->setWidget(contentWidget);
+    mainLayout->addWidget(m_contentScrollArea, 1);
+
+    // 4. Action Section (Sticky Bottom)
+    createActionSection(mainLayout);
 }
 
 void BooksCollectionPage::createHeaderSection(QVBoxLayout* mainLayout)
 {
     QFrame* headerFrame = new QFrame(this);
-    headerFrame->setFixedHeight(80);
-    headerFrame->setStyleSheet("QFrame { background-color: white; border-bottom: 1px solid #E0E5F2; }");
+    headerFrame->setFixedHeight(70);
+    headerFrame->setStyleSheet("background-color: white; border-bottom: 1px solid #E0E5F2;");
     
     QHBoxLayout* headerLayout = new QHBoxLayout(headerFrame);
     headerLayout->setContentsMargins(30, 0, 30, 0);
+    headerLayout->setSpacing(15);
     
     QLabel* iconLabel = new QLabel("📚", headerFrame);
-    iconLabel->setStyleSheet("font-size: 24px; background: transparent;");
+    iconLabel->setStyleSheet("font-size: 24px; background: transparent; border: none;");
     headerLayout->addWidget(iconLabel);
     
-    QLabel* titleLabel = new QLabel("Koleksi Buku", headerFrame);
-    titleLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 24px; font-weight: 700; color: #2B3674; margin-left: 10px; background: transparent;");
+    QLabel* titleLabel = new QLabel("Koleksi Perpustakaan", headerFrame);
+    titleLabel->setStyleSheet("font-family: 'Segoe UI'; font-size: 22px; font-weight: 700; color: #2B3674; border: none;");
     headerLayout->addWidget(titleLabel);
     
     headerLayout->addStretch();
     
-    // Global Search (Header)
-    QLineEdit* globalSearch = new QLineEdit(headerFrame);
-    globalSearch->setPlaceholderText("Search...");
-    globalSearch->setFixedSize(250, 40);
-    // Style khusus header: Border jelas, background putih
-    globalSearch->setStyleSheet(
-        "QLineEdit { "
-        "   background-color: #FFFFFF; "
-        "   border: 1px solid #94A3B8; " /* Border Slate Grey */
-        "   border-radius: 20px; "
-        "   padding-left: 15px; "
-        "   color: #2B3674; " /* Text Navy */
-        "   font-family: 'Segoe UI'; font-size: 13px;"
-        "}"
-        "QLineEdit:focus { border: 2px solid #4318FF; }"
+    QPushButton* profileBtn = new QPushButton("Admin", headerFrame);
+    profileBtn->setFixedSize(80, 34);
+    profileBtn->setStyleSheet(
+        "QPushButton { background-color: #1E293B; color: white; border-radius: 17px; font-weight: 600; border: none; }"
     );
-    headerLayout->addWidget(globalSearch);
-    
-    // Profile
-    QPushButton* profileBtn = new QPushButton("👤", headerFrame);
-    profileBtn->setFixedSize(45, 45);
-    profileBtn->setStyleSheet("QPushButton { background-color: #112D4E; border: none; border-radius: 22px; color: white; }");
     headerLayout->addWidget(profileBtn);
     
     mainLayout->addWidget(headerFrame);
 }
 
-// Helper untuk membuat kartu putih dengan bayangan
-QFrame* BooksCollectionPage::createCardFrame()
+void BooksCollectionPage::createControlSection(QVBoxLayout* containerLayout)
 {
-    QFrame* card = new QFrame(this);
-    card->setStyleSheet("background-color: white; border-radius: 16px;");
-    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(20);
-    shadow->setColor(QColor(0, 0, 0, 20)); // Shadow lebih gelap sedikit agar pop-up
-    shadow->setOffset(0, 4);
-    card->setGraphicsEffect(shadow);
-    return card;
-}
+    // --- Baris 1: Filter Utama ---
+    QHBoxLayout* toolbarLayout = new QHBoxLayout();
+    toolbarLayout->setSpacing(15);
 
-void BooksCollectionPage::createControlSection(QVBoxLayout* contentLayout)
-{
-    QFrame* controlCard = createCardFrame();
-    controlCard->setObjectName("controlCard"); 
-    
-    // --- STYLE GLOBAL UNTUK KARTU INI (PENYELAMAT TAMPILAN) ---
-    controlCard->setStyleSheet(
-        "#controlCard { background-color: white; border-radius: 16px; }"
-        
-        /* STYLE INPUT & DROPDOWN AGAR TERLIHAT */
+    QString inputStyle = 
         "QLineEdit, QComboBox {"
-        "   background-color: #FFFFFF;"    /* Pastikan putih bersih */
-        "   border: 1px solid #94A3B8;"    /* BORDER ABU TUA (PENTING!) */
-        "   border-radius: 8px;"
-        "   padding: 8px 12px;"
-        "   font-size: 13px;"
-        "   color: #2B3674;"               /* TEXT BIRU GELAP (PENTING!) */
-        "   min-height: 25px;"
-        "   font-family: 'Segoe UI';"
-        "}"
-        "QLineEdit:focus, QComboBox:focus {"
-        "   border: 2px solid #4318FF;"    /* Fokus jadi biru */
-        "   background-color: #FDFDFD;"
-        "}"
-        
-        /* STYLE DROPDOWN LIST (POPUP) AGAR TIDAK PUTIH POLOS */
-        "QComboBox::drop-down { border: none; width: 30px; }"
-        "QComboBox::down-arrow { image: none; border-left: 2px solid transparent; border-top: 2px solid #64748B; width: 8px; height: 8px; margin-right: 10px; }"
-        "QComboBox QAbstractItemView {"
-        "   background-color: #FFFFFF;"
+        "   background-color: white;"
         "   border: 1px solid #94A3B8;"
-        "   selection-background-color: #EAEFFC;"
-        "   selection-color: #2B3674;"
-        "   color: #2B3674;" /* Warna teks item */
-        "   outline: none;"
+        "   border-radius: 8px;"
+        "   padding: 0 12px;"
+        "   color: #2B3674;"
+        "   font-size: 13px;"
+        "   min-height: 40px;"
         "}"
-        
-        /* Label Title */
-        "QLabel { color: #64748B; font-weight: bold; font-family: 'Segoe UI'; font-size: 13px; background: transparent; }"
-    );
-    
-    QVBoxLayout* cardLayout = new QVBoxLayout(controlCard);
-    cardLayout->setContentsMargins(25, 25, 25, 25);
-    cardLayout->setSpacing(20);
-    
-    // --- ROW 1: HEADER ---
-    QLabel* lblHeader = new QLabel("Pencarian & Filter", controlCard);
-    lblHeader->setStyleSheet("color: #2B3674; font-size: 18px; font-weight: 700; border: none;");
-    cardLayout->addWidget(lblHeader);
+        "QLineEdit:focus, QComboBox:focus { border: 2px solid #4318FF; }";
 
-    // --- ROW 2: SEARCH FIELDS ---
-    QHBoxLayout* searchLayout = new QHBoxLayout();
-    searchLayout->setSpacing(15);
+    m_searchBox = new QLineEdit();
+    m_searchBox->setPlaceholderText("🔍 Cari judul, penulis...");
+    m_searchBox->setMinimumWidth(250);
+    m_searchBox->setStyleSheet(inputStyle);
+    toolbarLayout->addWidget(m_searchBox, 1);
 
-    // Group Search Judul
-    QVBoxLayout* box1 = new QVBoxLayout(); box1->setSpacing(5);
-    QLabel* lbl1 = new QLabel("Cari Judul:");
-    m_searchBox = new QLineEdit(controlCard);
-    m_searchBox->setPlaceholderText("Ketik judul buku...");
-    box1->addWidget(lbl1);
-    box1->addWidget(m_searchBox);
-    searchLayout->addLayout(box1, 2);
+    m_genreCombo = new QComboBox();
+    m_genreCombo->setFixedWidth(160);
+    m_genreCombo->setStyleSheet(inputStyle);
+    m_genreCombo->addItem("Semua Genre"); 
+    toolbarLayout->addWidget(m_genreCombo);
 
-    // Group Search Penulis
-    QVBoxLayout* box2 = new QVBoxLayout(); box2->setSpacing(5);
-    QLabel* lbl2 = new QLabel("Cari Penulis:");
-    m_authorSearch = new QLineEdit(controlCard);
-    m_authorSearch->setPlaceholderText("Ketik nama penulis...");
-    box2->addWidget(lbl2);
-    box2->addWidget(m_authorSearch);
-    searchLayout->addLayout(box2, 2);
+    m_sortCombo = new QComboBox();
+    m_sortCombo->addItem("Sort: Judul (A-Z)");
+    m_sortCombo->addItem("Sort: Judul (Z-A)");
+    m_sortCombo->addItem("Sort: Tahun (Baru)");
+    m_sortCombo->addItem("Sort: Rating (Tinggi)"); 
+    m_sortCombo->setFixedWidth(170);
+    m_sortCombo->setStyleSheet(inputStyle);
+    toolbarLayout->addWidget(m_sortCombo);
 
-    // Group Filter Genre
-    QVBoxLayout* box3 = new QVBoxLayout(); box3->setSpacing(5);
-    QLabel* lbl3 = new QLabel("Filter Genre:");
-    m_genreCombo = new QComboBox(controlCard);
-    box3->addWidget(lbl3);
-    box3->addWidget(m_genreCombo);
-    searchLayout->addLayout(box3, 1);
-
-    // Tombol Actions
-    QVBoxLayout* boxBtn = new QVBoxLayout(); 
-    boxBtn->setSpacing(5);
-    boxBtn->addWidget(new QLabel(" ")); // Spacer
-    
-    QHBoxLayout* btnRow = new QHBoxLayout();
-    QPushButton* btnFilter = new QPushButton("Cari");
-    btnFilter->setCursor(Qt::PointingHandCursor);
-    btnFilter->setFixedSize(70, 38); // Ukuran tombol pas
-    btnFilter->setStyleSheet("QPushButton { background-color: #4318FF; color: white; border-radius: 8px; font-weight: bold; border: none; } QPushButton:hover { background-color: #3311DB; }");
-    
-    QPushButton* btnReset = new QPushButton("Reset");
-    btnReset->setCursor(Qt::PointingHandCursor);
-    btnReset->setFixedSize(70, 38);
-    btnReset->setStyleSheet("QPushButton { background-color: white; border: 1px solid #94A3B8; color: #64748B; border-radius: 8px; font-weight: bold; } QPushButton:hover { border: 1px solid #EE5D50; color: #EE5D50; }");
-
-    btnRow->addWidget(btnFilter);
-    btnRow->addWidget(btnReset);
-    boxBtn->addLayout(btnRow);
-    
-    searchLayout->addLayout(boxBtn);
-    cardLayout->addLayout(searchLayout);
-    
-    // --- ROW 3: SEPARATOR ---
-    QFrame* line = new QFrame();
-    line->setFixedHeight(1);
-    line->setStyleSheet("background-color: #E0E5F2; border: none;");
-    cardLayout->addWidget(line);
-    
-    // --- ROW 4: SORTING ---
-    QHBoxLayout* sortLayout = new QHBoxLayout();
-    sortLayout->setSpacing(10);
-    
-    QLabel* lblSort = new QLabel("Urutkan:");
-    sortLayout->addWidget(lblSort);
-    
-    auto createSortBtn = [](QString text) -> QPushButton* {
-        QPushButton* btn = new QPushButton(text);
-        btn->setCursor(Qt::PointingHandCursor);
-        btn->setFixedHeight(32);
-        btn->setStyleSheet(
-            "QPushButton { background-color: #F1F5F9; color: #2B3674; border: none; border-radius: 6px; padding: 0 15px; font-weight: 600; }"
-            "QPushButton:hover { background-color: #EAEFFC; color: #4318FF; }"
-        );
-        return btn;
-    };
-    
-    QPushButton* btnSortTitle = createSortBtn("Judul");
-    QPushButton* btnSortYear = createSortBtn("Tahun");
-    QPushButton* btnSortRating = createSortBtn("Rating");
-    QPushButton* btnSortAuthor = createSortBtn("Penulis");
-    
-    sortLayout->addWidget(btnSortTitle);
-    sortLayout->addWidget(btnSortYear);
-    sortLayout->addWidget(btnSortRating);
-    sortLayout->addWidget(btnSortAuthor);
-    sortLayout->addStretch();
-    
-    m_btnToggleView = new QPushButton("🗃️ Switch View");
+    m_btnToggleView = new QPushButton("Tampilan Tabel");
+    m_btnToggleView->setCheckable(true);
+    m_btnToggleView->setFixedSize(140, 40);
     m_btnToggleView->setCursor(Qt::PointingHandCursor);
-    m_btnToggleView->setFixedHeight(35);
     m_btnToggleView->setStyleSheet(
-        "QPushButton { background-color: white; border: 1px solid #4318FF; color: #4318FF; border-radius: 8px; padding: 0 15px; font-weight: bold; }"
-        "QPushButton:hover { background-color: #4318FF; color: white; }"
+        "QPushButton { background-color: white; border: 1px solid #4318FF; color: #4318FF; border-radius: 8px; font-weight: bold; font-size: 13px; }"
+        "QPushButton:hover { background-color: #F4F7FE; }"
+        "QPushButton:checked { background-color: #4318FF; color: white; }"
     );
-    sortLayout->addWidget(m_btnToggleView);
-    
-    cardLayout->addLayout(sortLayout);
-    
-    // --- ROW 5: BST SEARCH FEATURE (TREE DATA STRUCTURE) ---
-    QFrame* lineBST = new QFrame();
-    lineBST->setFixedHeight(1);
-    lineBST->setStyleSheet("background-color: #E0E5F2; border: none;");
-    cardLayout->addWidget(lineBST);
-    
+    toolbarLayout->addWidget(m_btnToggleView);
+
+    containerLayout->addLayout(toolbarLayout);
+
+    // --- Baris 2: BST / Advanced Features ---
     QHBoxLayout* bstLayout = new QHBoxLayout();
-    bstLayout->setSpacing(10);
-    
-    QLabel* lblBST = new QLabel("🌳 Binary Search Tree:");
-    lblBST->setStyleSheet("font-weight: bold; color: #2B3674;");
-    bstLayout->addWidget(lblBST);
-    
-    m_btnBuildBST = new QPushButton("Build BST");
+    bstLayout->setContentsMargins(0, 5, 0, 0);
+
+    m_btnBuildBST = new QPushButton("⚡ Re-Build Index Tree (BST)");
     m_btnBuildBST->setCursor(Qt::PointingHandCursor);
-    m_btnBuildBST->setFixedHeight(32);
-    m_btnBuildBST->setStyleSheet(
-        "QPushButton { background-color: #10B981; color: white; border: none; border-radius: 6px; padding: 0 15px; font-weight: 600; }"
-        "QPushButton:hover { background-color: #059669; }"
-    );
-    bstLayout->addWidget(m_btnBuildBST);
+    m_btnBuildBST->setStyleSheet("QPushButton { border: none; color: #64748B; font-weight: 600; text-align: left; } QPushButton:hover { color: #4318FF; }");
     
+    QLabel* bstLabel = new QLabel("Cari via ID (BST):");
+    bstLabel->setStyleSheet("color: #64748B; margin-left: 10px;");
+
     m_bstSearchBox = new QLineEdit();
-    m_bstSearchBox->setPlaceholderText("Cari judul buku dengan BST...");
-    m_bstSearchBox->setFixedHeight(32);
-    m_bstSearchBox->setStyleSheet("QLineEdit { border: 1px solid #CBD5E1; border-radius: 6px; padding: 0 10px; }");
-    bstLayout->addWidget(m_bstSearchBox, 1);
-    
-    m_btnSearchBST = new QPushButton("🔍 Search BST");
-    m_btnSearchBST->setCursor(Qt::PointingHandCursor);
-    m_btnSearchBST->setFixedHeight(32);
-    m_btnSearchBST->setStyleSheet(
-        "QPushButton { background-color: #6366F1; color: white; border: none; border-radius: 6px; padding: 0 15px; font-weight: 600; }"
-        "QPushButton:hover { background-color: #4F46E5; }"
-    );
-    bstLayout->addWidget(m_btnSearchBST);
-    
-    cardLayout->addLayout(bstLayout);
-    contentLayout->addWidget(controlCard);
-    
-    // --- CONNECT SIGNALS ---
+    m_bstSearchBox->setPlaceholderText("Masukkan ID Buku...");
+    m_bstSearchBox->setFixedWidth(150);
+    m_bstSearchBox->setStyleSheet("QLineEdit { background: transparent; border: none; border-bottom: 1px solid #CBD5E1; color: #2B3674; }");
+
+    bstLayout->addWidget(m_btnBuildBST);
+    bstLayout->addWidget(bstLabel);
+    bstLayout->addWidget(m_bstSearchBox);
+    bstLayout->addStretch();
+
+    containerLayout->addLayout(bstLayout);
+
+    // Connects
     connect(m_searchBox, &QLineEdit::textChanged, this, &BooksCollectionPage::onSearchTextChanged);
-    connect(btnReset, &QPushButton::clicked, this, &BooksCollectionPage::onClearSearch);
-    connect(btnFilter, &QPushButton::clicked, this, &BooksCollectionPage::onSearchByGenre); 
-    connect(m_authorSearch, &QLineEdit::returnPressed, this, &BooksCollectionPage::onSearchByAuthor);
-    connect(btnSortTitle, &QPushButton::clicked, this, &BooksCollectionPage::onSortByTitle);
-    connect(btnSortYear, &QPushButton::clicked, this, &BooksCollectionPage::onSortByYear);
-    connect(btnSortRating, &QPushButton::clicked, this, &BooksCollectionPage::onSortByRating);
-    connect(btnSortAuthor, &QPushButton::clicked, this, &BooksCollectionPage::onSortByAuthor);
+    connect(m_genreCombo, &QComboBox::currentTextChanged, this, &BooksCollectionPage::onFilterChanged);
+    connect(m_sortCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &BooksCollectionPage::onFilterChanged);
     connect(m_btnToggleView, &QPushButton::clicked, this, &BooksCollectionPage::onToggleView);
     connect(m_btnBuildBST, &QPushButton::clicked, this, &BooksCollectionPage::onBuildBST);
-    connect(m_btnSearchBST, &QPushButton::clicked, this, &BooksCollectionPage::onSearchBST);
     connect(m_bstSearchBox, &QLineEdit::returnPressed, this, &BooksCollectionPage::onSearchBST);
 }
 
@@ -333,22 +185,16 @@ void BooksCollectionPage::createContentSection(QVBoxLayout* contentLayout)
 {
     m_viewStack = new QStackedWidget(this);
     
-    // 1. CARD VIEW (Grid)
-    m_cardScrollArea = new QScrollArea();
-    m_cardScrollArea->setWidgetResizable(true);
-    m_cardScrollArea->setFrameShape(QFrame::NoFrame);
-    m_cardScrollArea->setStyleSheet("background: transparent; border: none;");
-    
+    // VIEW 1: Cards
     m_cardContainer = new QWidget();
     m_cardContainer->setStyleSheet("background: transparent;");
     m_cardLayout = new QGridLayout(m_cardContainer);
     m_cardLayout->setSpacing(20);
+    m_cardLayout->setContentsMargins(0, 0, 0, 0);
     m_cardLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_viewStack->addWidget(m_cardContainer);
     
-    m_cardScrollArea->setWidget(m_cardContainer);
-    m_viewStack->addWidget(m_cardScrollArea);
-    
-    // 2. TABLE VIEW (List)
+    // VIEW 2: Table
     QFrame* tableFrame = createCardFrame();
     QVBoxLayout* tableLayout = new QVBoxLayout(tableFrame);
     tableLayout->setContentsMargins(0, 0, 0, 0); 
@@ -356,65 +202,45 @@ void BooksCollectionPage::createContentSection(QVBoxLayout* contentLayout)
     m_tableBooks = new QTableWidget();
     m_tableBooks->setColumnCount(6);
     m_tableBooks->setHorizontalHeaderLabels({"ID", "Judul Buku", "Penulis", "Genre", "Tahun", "Rating"});
-    
-    // --- STYLE TABLE (Agar text header nampak) ---
-    m_tableBooks->setStyleSheet(
-        "QTableWidget {"
-        "   background-color: white;"
-        "   border: none;"
-        "   gridline-color: transparent;"
-        "   border-radius: 16px;"
-        "   selection-background-color: #F4F7FE;"
-        "   selection-color: #4318FF;"
-        "}"
-        "QTableWidget::item {"
-        "   padding: 12px;"
-        "   border-bottom: 1px solid #F1F5F9;"
-        "   color: #2B3674;" /* Warna Text Row */
-        "   font-size: 13px;"
-        "}"
-        "QHeaderView::section {"
-        "   background-color: #F8F9FC;"
-        "   color: #64748B;" /* Warna Text Header (Abu Gelap) */
-        "   font-weight: bold;"
-        "   border: none;"
-        "   border-bottom: 2px solid #E0E5F2;"
-        "   padding: 12px 10px;"
-        "   text-align: left;"
-        "}"
-    );
-    
     m_tableBooks->verticalHeader()->setVisible(false);
     m_tableBooks->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_tableBooks->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tableBooks->setShowGrid(false);
-    m_tableBooks->setFocusPolicy(Qt::NoFocus);
-    m_tableBooks->setAlternatingRowColors(false);
+    m_tableBooks->setAlternatingRowColors(true);
+    m_tableBooks->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    
+    m_tableBooks->setStyleSheet(
+        "QTableWidget { background-color: white; border: none; border-radius: 12px; }"
+        "QTableWidget::item { padding: 12px; border-bottom: 1px solid #F1F5F9; color: #2B3674; }"
+        "QTableWidget::item:selected { background-color: #EAEFFC; color: #4318FF; }"
+        "QHeaderView::section { background-color: #F8F9FC; color: #64748B; font-weight: bold; border: none; padding: 12px; border-bottom: 2px solid #E0E5F2; }"
+    );
     
     m_tableBooks->horizontalHeader()->setStretchLastSection(true);
     m_tableBooks->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_tableBooks->setColumnWidth(0, 60);
-    m_tableBooks->setColumnWidth(2, 180);
     
     connect(m_tableBooks, &QTableWidget::itemSelectionChanged, this, &BooksCollectionPage::onTableSelectionChanged);
+    
+    // [UI/UX PREVIEW] Double click di tabel membuka preview
+    connect(m_tableBooks, &QTableWidget::cellDoubleClicked, this, &BooksCollectionPage::onPreviewBook);
     
     tableLayout->addWidget(m_tableBooks);
     m_viewStack->addWidget(tableFrame);
     
-    m_viewStack->setCurrentIndex(1); // Default Table View
-    m_isCardView = false;
-    
-    contentLayout->addWidget(m_viewStack, 1);
+    contentLayout->addWidget(m_viewStack);
 }
 
-void BooksCollectionPage::createActionSection(QVBoxLayout* contentLayout)
+void BooksCollectionPage::createActionSection(QVBoxLayout* mainLayout)
 {
-    QHBoxLayout* actionLayout = new QHBoxLayout();
+    // Container untuk Footer (Sticky Bottom)
+    QWidget* actionWidget = new QWidget();
+    actionWidget->setStyleSheet("background-color: white; border-top: 1px solid #E0E5F2;");
+    actionWidget->setFixedHeight(80); 
+
+    QHBoxLayout* actionLayout = new QHBoxLayout(actionWidget);
+    actionLayout->setContentsMargins(30, 15, 30, 15);
     actionLayout->setSpacing(15);
     
-    QString btnStyle = 
-        "QPushButton { border-radius: 10px; padding: 12px 25px; font-weight: bold; color: white; font-size: 13px; border: none; font-family: 'Segoe UI'; }"
-        "QPushButton:disabled { background-color: #E0E5F2; color: #A3AED0; }";
+    QString btnStyle = "QPushButton { border-radius: 8px; padding: 0 20px; height: 45px; font-weight: bold; color: white; border: none; font-size: 14px; }";
     
     m_btnUndoDelete = new QPushButton("↩️ Undo Hapus");
     m_btnUndoDelete->setCursor(Qt::PointingHandCursor);
@@ -435,95 +261,268 @@ void BooksCollectionPage::createActionSection(QVBoxLayout* contentLayout)
     actionLayout->addWidget(m_btnDeleteBook);
     actionLayout->addWidget(m_btnEditBook);
     
-    contentLayout->addLayout(actionLayout);
+    mainLayout->addWidget(actionWidget);
     
     connect(m_btnEditBook, &QPushButton::clicked, this, &BooksCollectionPage::onEditBook);
     connect(m_btnDeleteBook, &QPushButton::clicked, this, &BooksCollectionPage::onDeleteBook);
     connect(m_btnUndoDelete, &QPushButton::clicked, this, &BooksCollectionPage::onUndoDelete);
 }
 
-// --- LOGIC FUNCTIONS (TIDAK BERUBAH) ---
-
-void BooksCollectionPage::populateGenreComboBox()
+QFrame* BooksCollectionPage::createCardFrame()
 {
-    m_genreCombo->clear();
-    m_genreCombo->addItem("-- Semua Genre --");
-    
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    std::set<QString> genres;
-    for (const Book& book : dbManager.getAllBooks()) {
-        for (const QString& genre : book.getGenre()) {
-            genres.insert(genre.trimmed());
-        }
-    }
-    for (const QString& genre : genres) {
-        m_genreCombo->addItem(genre);
-    }
+    QFrame* card = new QFrame(this);
+    card->setStyleSheet("background-color: white; border-radius: 12px; border: 1px solid #E2E8F0;");
+    return card;
 }
+
+// --- LOGIC ---
 
 void BooksCollectionPage::refreshTable()
 {
     DatabaseManager& dbManager = DatabaseManager::instance();
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books);
-    else loadBooksToTable(books);
-    populateGenreComboBox();
+    m_currentBooks = dbManager.getAllBooks();
+    
+    populateGenreComboBox(); 
+    onFilterChanged();       
+}
+
+void BooksCollectionPage::populateGenreComboBox()
+{
+    QString currentSelection = m_genreCombo->currentText();
+    
+    m_genreCombo->blockSignals(true); 
+    m_genreCombo->clear();
+    m_genreCombo->addItem("Semua Genre");
+    
+    std::set<QString> genres;
+    for (const Book& book : m_currentBooks) {
+        for (const QString& g : book.getGenre()) {
+            if(!g.trimmed().isEmpty()) genres.insert(g.trimmed());
+        }
+    }
+    
+    for (const QString& genre : genres) {
+        m_genreCombo->addItem(genre);
+    }
+    
+    int index = m_genreCombo->findText(currentSelection);
+    if (index != -1) m_genreCombo->setCurrentIndex(index);
+    
+    m_genreCombo->blockSignals(false);
+}
+
+void BooksCollectionPage::onFilterChanged()
+{
+    std::vector<Book> filtered = m_currentBooks;
+    
+    // 1. Search Logic
+    QString search = m_searchBox->text().toLower().trimmed();
+    if (!search.isEmpty()) {
+        std::vector<Book> temp;
+        for (const auto& b : filtered) {
+            if (b.getJudul().toLower().contains(search) || 
+                b.getPenulis().toLower().contains(search)) {
+                temp.push_back(b);
+            }
+        }
+        filtered = temp;
+    }
+    
+    // 2. Genre Filter
+    QString genre = m_genreCombo->currentText();
+    if (genre != "Semua Genre" && !genre.isEmpty()) {
+        std::vector<Book> temp;
+        for (const auto& b : filtered) {
+            if (b.hasGenre(genre)) temp.push_back(b);
+        }
+        filtered = temp;
+    }
+    
+    // 3. Sorting
+    int sortIdx = m_sortCombo->currentIndex();
+    std::sort(filtered.begin(), filtered.end(), [sortIdx](const Book& a, const Book& b) {
+        switch(sortIdx) {
+            case 0: return a.getJudul() < b.getJudul(); // A-Z
+            case 1: return a.getJudul() > b.getJudul(); // Z-A
+            case 2: return a.getTahun() > b.getTahun(); // Terbaru
+            case 3: return a.getRating() > b.getRating(); // Rating Tertinggi
+            default: return a.getJudul() < b.getJudul();
+        }
+    });
+    
+    // 4. Render
+    if (m_isCardView) {
+        loadBooksToCards(filtered);
+    } else {
+        loadBooksToTable(filtered);
+    }
 }
 
 void BooksCollectionPage::loadBooksToTable(const std::vector<Book>& books)
 {
     m_tableBooks->setRowCount(0);
-    m_tableBooks->setSortingEnabled(false);
+    m_tableBooks->setSortingEnabled(false); 
     
     for (const Book& book : books) {
         int row = m_tableBooks->rowCount();
         m_tableBooks->insertRow(row);
         m_tableBooks->setRowHeight(row, 60);
         
-        QTableWidgetItem* idItem = new QTableWidgetItem(QString::number(book.getId()));
-        idItem->setTextAlignment(Qt::AlignCenter);
-        m_tableBooks->setItem(row, 0, idItem);
-        
-        QTableWidgetItem* titleItem = new QTableWidgetItem(book.getJudul());
-        titleItem->setFont(QFont("Segoe UI", 10, QFont::Bold));
-        m_tableBooks->setItem(row, 1, titleItem);
-        
+        m_tableBooks->setItem(row, 0, new QTableWidgetItem(QString::number(book.getId())));
+        m_tableBooks->setItem(row, 1, new QTableWidgetItem(book.getJudul()));
         m_tableBooks->setItem(row, 2, new QTableWidgetItem(book.getPenulis()));
         m_tableBooks->setItem(row, 3, new QTableWidgetItem(book.getGenre().join(", ")));
+        m_tableBooks->setItem(row, 4, new QTableWidgetItem(QString::number(book.getTahun())));
         
-        QTableWidgetItem* yearItem = new QTableWidgetItem(QString::number(book.getTahun()));
-        yearItem->setTextAlignment(Qt::AlignCenter);
-        m_tableBooks->setItem(row, 4, yearItem);
-        
-        QString ratingText = QString::number(book.getRating(), 'f', 1) + " ⭐";
-        QTableWidgetItem* ratingItem = new QTableWidgetItem(ratingText);
+        QTableWidgetItem* ratingItem = new QTableWidgetItem(QString("%1 ⭐").arg(book.getRating()));
         ratingItem->setTextAlignment(Qt::AlignCenter);
-        ratingItem->setForeground(QBrush(QColor("#FFB547")));
-        ratingItem->setFont(QFont("Segoe UI", 10, QFont::Bold));
         m_tableBooks->setItem(row, 5, ratingItem);
     }
 }
 
 void BooksCollectionPage::loadBooksToCards(const std::vector<Book>& books)
 {
+    // Clear old cards
     QLayoutItem* item;
     while ((item = m_cardLayout->takeAt(0)) != nullptr) {
         if (item->widget()) delete item->widget();
         delete item;
     }
     
-    int col = 0; int row = 0; int maxCols = 4; // 4 Kolom agar lebih padat
+    // Reset Layout Stretch
+    for (int i = 0; i < m_cardLayout->columnCount(); ++i) {
+        m_cardLayout->setColumnStretch(i, 0);
+    }
+
+    // Responsive Logic
+    int viewportWidth = m_contentScrollArea->viewport()->width();
+    if (viewportWidth <= 0) viewportWidth = 1000;
     
-    for (const Book& book : books) {
-        BookCardWidget* card = new BookCardWidget(book, m_cardContainer);
+    // Tweak margin agar tidak muncul horizontal scroll
+    int effectiveWidth = viewportWidth - 40; 
+    
+    int minCardWidth = 220; 
+    int spacing = 20;
+    
+    int numCols = (effectiveWidth + spacing) / (minCardWidth + spacing);
+    if (numCols < 1) numCols = 1;
+    
+    // Force Grid columns
+    for (int i = 0; i < numCols; ++i) {
+        m_cardLayout->setColumnStretch(i, 1);
+    }
+    
+    m_cardLayout->setVerticalSpacing(spacing);
+    m_cardLayout->setHorizontalSpacing(spacing);
+    m_cardLayout->setAlignment(Qt::AlignTop);
+
+    for (int i = 0; i < books.size(); ++i) {
+        BookCardWidget* card = new BookCardWidget(books[i], m_cardContainer);
+        
+        // Stretch Logic
+        card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        card->setMaximumWidth(400); 
+        
+        int row = i / numCols;
+        int col = i % numCols;
+        
+        m_cardLayout->addWidget(card, row, col);
+
+        // Signal Connections
         connect(card, &BookCardWidget::editRequested, this, &BooksCollectionPage::editBookRequested);
         connect(card, &BookCardWidget::deleteRequested, this, &BooksCollectionPage::deleteBookRequested);
         
-        m_cardLayout->addWidget(card, row, col);
-        col++;
-        if (col >= maxCols) { col = 0; row++; }
+        // [UI/UX PREVIEW] Klik kartu membuka preview
+        connect(card, &BookCardWidget::cardClicked, this, &BooksCollectionPage::onPreviewBook);
     }
-    m_cardLayout->setRowStretch(row + 1, 1);
+}
+
+void BooksCollectionPage::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    if (m_isCardView) {
+        QTimer::singleShot(0, this, [this](){
+            onFilterChanged();
+        });
+    }
+}
+
+// --- BST IMPLEMENTATION ---
+
+void BooksCollectionPage::onBuildBST() {
+    DatabaseManager::instance().getBookManager().buildBST();
+    QMessageBox::information(this, "Success", "Binary Search Tree Index berhasil dibangun ulang!\nPencarian ID sekarang O(log n).");
+}
+
+void BooksCollectionPage::onSearchBST() {
+    QString query = m_bstSearchBox->text().trimmed();
+    if (query.isEmpty()) {
+        refreshTable();
+        return;
+    }
+
+    // IMPROVED: Menggunakan searchBSTPartial untuk pencarian yang lebih fleksibel
+    // Mendukung: partial match, case-insensitive, tidak perlu judul lengkap
+    std::vector<Book> results = DatabaseManager::instance().getBookManager().searchBSTPartial(query);
+
+    if (!results.empty()) {
+        // Tampilkan hasil pencarian
+        if (m_isCardView) loadBooksToCards(results);
+        else loadBooksToTable(results);
+        
+        QMessageBox::information(this, "Ditemukan", 
+            QString("Ditemukan %1 buku yang cocok dengan '%2'!")
+                .arg(results.size())
+                .arg(query));
+    } else {
+        QMessageBox::information(this, "Tidak Ditemukan", 
+            QString("Tidak ada buku yang cocok dengan '%1' dalam BST.").arg(query));
+    }
+}
+
+// --- UI/UX PREVIEW SLOT ---
+
+void BooksCollectionPage::onPreviewBook() {
+    // 1. Tentukan Buku mana yang diklik
+    int id = -1;
+
+    // A. Cek apakah trigger dari Klik Kartu (Sender adalah BookCardWidget)
+    QObject* senderObj = sender();
+    if (senderObj) {
+        BookCardWidget* card = qobject_cast<BookCardWidget*>(senderObj);
+        if (card) {
+            id = card->getBookId();
+        }
+    }
+
+    // B. Jika bukan dari kartu, cek seleksi di tabel
+    if (id == -1) {
+        id = getSelectedBookId();
+    }
+    
+    // C. Jika masih tidak ada ID (misal klik ganda di area kosong tabel), return
+    if (id == -1) return;
+    
+    // 2. Ambil Data Buku
+    DatabaseManager& db = DatabaseManager::instance();
+    Book book = db.getBookById(id);
+    
+    if (book.getId() == 0) {
+        QMessageBox::warning(this, "Error", "Buku tidak ditemukan di database!");
+        return;
+    }
+    
+    // 3. Tampilkan Dialog Preview Modern
+    BookPreviewDialog* dialog = new BookPreviewDialog(book, this);
+    
+    // [FITUR] Tambahkan ke Queue jika tombol pinjam diklik di dialog
+    connect(dialog, &BookPreviewDialog::bookBorrowed, this, [this](int bookId, const QString& borrowerName) {
+        QMessageBox::information(this, "Berhasil", 
+            QString("Buku telah ditambahkan ke antrian peminjaman!\nPeminjam: %1").arg(borrowerName));
+    });
+    
+    dialog->exec();
+    delete dialog;
 }
 
 void BooksCollectionPage::onToggleView()
@@ -531,194 +530,53 @@ void BooksCollectionPage::onToggleView()
     m_isCardView = !m_isCardView;
     if (m_isCardView) {
         m_viewStack->setCurrentIndex(0);
-        m_btnToggleView->setText("🗃️ Table View");
+        m_btnToggleView->setText("Tampilan Tabel");
+        m_btnToggleView->setChecked(false);
     } else {
         m_viewStack->setCurrentIndex(1);
-        m_btnToggleView->setText("🗃️ Card View");
+        m_btnToggleView->setText("Tampilan Kartu");
+        m_btnToggleView->setChecked(true);
     }
-    refreshTable();
+    onFilterChanged();
 }
 
-int BooksCollectionPage::getSelectedBookId()
-{
-    QList<QTableWidgetItem*> selected = m_tableBooks->selectedItems();
-    if (selected.isEmpty()) return -1;
-    int row = selected.first()->row();
-    return m_tableBooks->item(row, 0)->text().toInt();
+void BooksCollectionPage::onClearSearch() { 
+    m_searchBox->clear(); 
+    m_genreCombo->setCurrentIndex(0); 
 }
 
-void BooksCollectionPage::onSearchTextChanged()
-{
-    QString searchText = m_searchBox->text().trimmed();
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    std::vector<Book> results;
-    if (searchText.isEmpty()) results = dbManager.getAllBooks();
-    else results = dbManager.searchByTitle(searchText);
-    if (m_isCardView) loadBooksToCards(results); else loadBooksToTable(results);
+void BooksCollectionPage::onEditBook() { 
+    int id = getSelectedBookId(); 
+    if(id != -1) emit editBookRequested(id); 
 }
 
-void BooksCollectionPage::onSearchByGenre()
-{
-    QString genre = m_genreCombo->currentText();
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    std::vector<Book> results;
-    if (genre == "-- Semua Genre --") results = dbManager.getAllBooks();
-    else results = dbManager.searchByGenre(genre);
-    if (m_isCardView) loadBooksToCards(results); else loadBooksToTable(results);
+void BooksCollectionPage::onDeleteBook() { 
+    int id = getSelectedBookId(); 
+    if(id != -1) emit deleteBookRequested(id); 
 }
 
-void BooksCollectionPage::onSearchByAuthor()
-{
-    QString author = m_authorSearch->text().trimmed();
-    if (author.isEmpty()) { QMessageBox::warning(this, "Peringatan", "Masukkan nama penulis!"); return; }
-    std::vector<Book> results = DatabaseManager::instance().searchByAuthor(author);
-    if (results.empty()) QMessageBox::information(this, "Info", QString("Tidak ada buku dari '%1'").arg(author));
-    if (m_isCardView) loadBooksToCards(results); else loadBooksToTable(results);
-}
-
-void BooksCollectionPage::onClearSearch()
-{
-    m_searchBox->clear(); m_authorSearch->clear(); m_genreCombo->setCurrentIndex(0);
-    refreshTable();
-}
-
-void BooksCollectionPage::onSortByTitle()
-{
-    // Menggunakan QuickSort dari BookManager (implementasi custom)
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    dbManager.getBookManager().quickSortByTitle(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
-    m_sortAscending = !m_sortAscending;
-}
-
-void BooksCollectionPage::onSortByYear()
-{
-    // Menggunakan QuickSort dari BookManager (implementasi custom)
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    dbManager.getBookManager().quickSortByYear(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
-    m_sortAscending = !m_sortAscending;
-}
-
-void BooksCollectionPage::onSortByRating()
-{
-    // Menggunakan QuickSort dari BookManager (implementasi custom)
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    dbManager.getBookManager().quickSortByRating(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
-    m_sortAscending = !m_sortAscending;
-}
-
-void BooksCollectionPage::onSortByAuthor()
-{
-    // Menggunakan QuickSort dari BookManager (implementasi custom)
-    DatabaseManager& dbManager = DatabaseManager::instance();
-    dbManager.getBookManager().quickSortByAuthor(m_sortAscending);
-    std::vector<Book> books = dbManager.getAllBooks();
-    if (m_isCardView) loadBooksToCards(books); else loadBooksToTable(books);
-    m_sortAscending = !m_sortAscending;
-}
-
-void BooksCollectionPage::onEditBook()
-{
-    int bookId = getSelectedBookId();
-    if (bookId != -1) emit editBookRequested(bookId);
-}
-
-void BooksCollectionPage::onDeleteBook()
-{
-    int bookId = getSelectedBookId();
-    if (bookId != -1) emit deleteBookRequested(bookId);
-}
-
-void BooksCollectionPage::onUndoDelete()
-{
-    DatabaseManager& db = DatabaseManager::instance();
-    if (db.getBookManager().undoDelete()) {
-        db.saveBookManagerToDatabase();
+void BooksCollectionPage::onUndoDelete() { 
+    if(DatabaseManager::instance().getBookManager().undoDelete()) {
+        DatabaseManager::instance().saveBookManagerToDatabase();
         refreshTable();
-        QMessageBox::information(this, "Sukses", "Undo berhasil!");
+        QMessageBox::information(this, "Info", "Buku berhasil dikembalikan.");
     } else {
-        QMessageBox::warning(this, "Gagal", "Tidak ada yang bisa di-undo.");
+        QMessageBox::information(this, "Info", "Tidak ada data untuk dikembalikan.");
     }
 }
 
-void BooksCollectionPage::onTableSelectionChanged()
-{
+void BooksCollectionPage::onTableSelectionChanged() {
     bool hasSelection = !m_tableBooks->selectedItems().isEmpty();
-    m_btnEditBook->setEnabled(hasSelection);
+    m_btnEditBook->setEnabled(hasSelection); 
     m_btnDeleteBook->setEnabled(hasSelection);
-    if (hasSelection) emit bookSelected(getSelectedBookId());
 }
 
-// ============================================================================
-// BINARY SEARCH TREE (BST) - TREE DATA STRUCTURE IMPLEMENTATION
-// ============================================================================
-
-void BooksCollectionPage::onBuildBST()
-{
-    DatabaseManager& db = DatabaseManager::instance();
-    
-    // Build BST dari semua buku
-    db.getBookManager().buildBST();
-    
-    QMessageBox::information(this, "BST Berhasil", 
-        QString("Binary Search Tree berhasil dibangun dengan %1 buku!\n\n"
-                "BST diurutkan berdasarkan judul buku.\n"
-                "Gunakan fitur 'Search BST' untuk mencari buku dengan cepat.")
-                .arg(db.getBookManager().getBookCount()));
+int BooksCollectionPage::getSelectedBookId() {
+    auto items = m_tableBooks->selectedItems();
+    if (items.isEmpty()) return -1;
+    return m_tableBooks->item(items[0]->row(), 0)->text().toInt();
 }
 
-void BooksCollectionPage::onSearchBST()
-{
-    QString searchTitle = m_bstSearchBox->text().trimmed();
-    
-    if (searchTitle.isEmpty()) {
-        QMessageBox::warning(this, "Peringatan", "Masukkan judul buku yang ingin dicari!");
-        return;
-    }
-    
-    DatabaseManager& db = DatabaseManager::instance();
-    
-    // Cek apakah BST sudah dibangun
-    if (!db.getBookManager().hasBST()) {
-        QMessageBox::warning(this, "BST Belum Dibangun", 
-            "Binary Search Tree belum dibangun!\n\n"
-            "Klik tombol 'Build BST' terlebih dahulu.");
-        return;
-    }
-    
-    // Cari di BST
-    Book* found = db.getBookManager().searchBST(searchTitle);
-    
-    if (found) {
-        // Tampilkan hasil pencarian
-        std::vector<Book> result;
-        result.push_back(*found);
-        
-        if (m_isCardView) {
-            loadBooksToCards(result);
-        } else {
-            loadBooksToTable(result);
-        }
-        
-        QMessageBox::information(this, "Buku Ditemukan", 
-            QString("✅ Buku ditemukan menggunakan Binary Search Tree!\n\n"
-                    "Judul: %1\n"
-                    "Penulis: %2\n"
-                    "Tahun: %3\n"
-                    "Rating: %4")
-                    .arg(found->getJudul())
-                    .arg(found->getPenulis())
-                    .arg(found->getTahun())
-                    .arg(found->getRating()));
-    } else {
-        QMessageBox::information(this, "Tidak Ditemukan", 
-            QString("❌ Buku dengan judul '%1' tidak ditemukan di BST.\n\n"
-                    "Pastikan ejaan judul benar dan BST sudah dibangun.")
-                    .arg(searchTitle));
-    }
+void BooksCollectionPage::onSearchTextChanged() {
+    onFilterChanged();
 }

@@ -14,7 +14,13 @@ BorrowQueuePage::BorrowQueuePage(QWidget *parent)
     : QWidget(parent)
 {
     setupUI();
+    
+    // Initialize dengan refresh queue
     refreshQueue();
+    
+    // Log untuk debugging
+    qDebug() << "[BorrowQueuePage] Initialized - Queue size:" 
+             << DatabaseManager::instance().getBookManager().getBorrowQueueSize();
 }
 
 BorrowQueuePage::~BorrowQueuePage()
@@ -176,6 +182,9 @@ void BorrowQueuePage::createContentSection(QVBoxLayout* contentLayout)
     leftLayout->addWidget(m_btnAddToBorrow);
     leftLayout->addStretch(); // Push content up
 
+    // Connect signals
+    connect(m_btnAddToBorrow, &QPushButton::clicked, this, &BorrowQueuePage::onAddToBorrow);
+    
     splitLayout->addWidget(leftPanel);
 
     // --- PANEL KANAN: TABEL ANTRIAN ---
@@ -261,6 +270,10 @@ void BorrowQueuePage::createContentSection(QVBoxLayout* contentLayout)
 
     splitLayout->addWidget(rightPanel, 1); // Expand right panel
     contentLayout->addLayout(splitLayout);
+    
+    // Connect signals for right panel
+    connect(m_btnProcessNext, &QPushButton::clicked, this, &BorrowQueuePage::onProcessNext);
+    connect(m_btnClearQueue, &QPushButton::clicked, this, &BorrowQueuePage::onClearQueue);
 }
 
 QWidget* BorrowQueuePage::createInputGroup(const QString& labelText, QWidget* inputWidget)

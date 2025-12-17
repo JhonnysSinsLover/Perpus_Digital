@@ -59,6 +59,7 @@ set(UI_SOURCES
     ui/BorrowQueuePage.cpp
     ui/PopularBooksPage.cpp
     ui/BookCardWidget.cpp
+    ui/BookPreviewDialog.cpp
 )
 
 set(UI_HEADERS
@@ -72,6 +73,7 @@ set(UI_HEADERS
     ui/BorrowQueuePage.h
     ui/PopularBooksPage.h
     ui/BookCardWidget.h
+    ui/BookPreviewDialog.h
 )
 
 set(UI_FORMS

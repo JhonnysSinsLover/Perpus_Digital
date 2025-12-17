@@ -268,11 +268,19 @@ public:
     void buildBST();
     
     /**
-     * @brief Search book in BST by title
+     * @brief Search book in BST by title (exact match)
      * @param title Title to search
      * @return Pointer to book if found, nullptr otherwise
      */
     Book* searchBST(const QString& title);
+    
+    /**
+     * @brief Search books in BST by partial title (flexible, case-insensitive)
+     * Uses in-order traversal to find all books that match the partial title
+     * @param partialTitle Partial title to search (can be lowercase, uppercase, or incomplete)
+     * @return Vector of books that match the partial title
+     */
+    std::vector<Book> searchBSTPartial(const QString& partialTitle);
     
     /**
      * @brief Get BST in-order traversal (sorted books)
@@ -343,12 +351,20 @@ private:
     std::shared_ptr<BSTNode> insertBST(std::shared_ptr<BSTNode> node, const Book& book);
     
     /**
-     * @brief Search in BST recursively
+     * @brief Search in BST recursively (exact match)
      * @param node Current node
      * @param title Title to search
      * @return Pointer to book if found, nullptr otherwise
      */
     Book* searchBSTHelper(std::shared_ptr<BSTNode> node, const QString& title);
+    
+    /**
+     * @brief Search in BST recursively with partial match (flexible)
+     * @param node Current node
+     * @param partialTitle Partial title to search
+     * @param results Vector to store matching books
+     */
+    void searchBSTPartialHelper(std::shared_ptr<BSTNode> node, const QString& partialTitle, std::vector<Book>& results);
     
     /**
      * @brief In-order traversal of BST

@@ -2,7 +2,7 @@
 #define POPULARBOOKSPAGE_H
 
 #include <QWidget>
-#include <QTableWidget>
+#include <QGridLayout>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
 #include <QPushButton>
@@ -14,6 +14,7 @@
 
 /**
  * @brief Page for displaying popular books using Priority Queue (Max Heap)
+ * Updated to use Modern Card Grid Layout
  */
 class PopularBooksPage : public QWidget
 {
@@ -36,12 +37,13 @@ private:
     void createHeaderSection(QVBoxLayout* mainLayout);
     void createContentSection(QVBoxLayout* contentLayout);
     QFrame* createCardFrame();
-    QWidget* createInputGroup(const QString& labelText, QWidget* inputWidget);
     
-    void loadBooksToTable(const std::vector<Book>& books);
+    // Fungsi baru untuk menampilkan kartu
+    void displayBooksAsCards(const std::vector<Book>& books);
+    void clearGrid();
     
     // UI Elements
-    QTableWidget* m_tableBooks;
+    QGridLayout* m_booksGrid; // Pengganti Table
     QSpinBox* m_topNInput;
     QDoubleSpinBox* m_minRatingInput;
     QPushButton* m_btnShowTopN;

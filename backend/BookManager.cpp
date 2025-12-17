@@ -464,6 +464,40 @@ Book* BookManager::searchBSTHelper(std::shared_ptr<BSTNode> node, const QString&
     }
 }
 
+std::vector<Book> BookManager::searchBSTPartial(const QString& partialTitle)
+{
+    std::vector<Book> results;
+    
+    if (!m_bstRoot) {
+        qDebug() << "BST is empty, cannot perform partial search";
+        return results;
+    }
+    
+    // Perform in-order traversal and collect matching books
+    searchBSTPartialHelper(m_bstRoot, partialTitle.toLower(), results);
+    
+    qDebug() << "BST Partial Search found" << results.size() << "books matching:" << partialTitle;
+    return results;
+}
+
+void BookManager::searchBSTPartialHelper(std::shared_ptr<BSTNode> node, const QString& partialTitle, std::vector<Book>& results)
+{
+    if (!node) {
+        return;
+    }
+    
+    // In-order traversal: left -> current -> right
+    searchBSTPartialHelper(node->left, partialTitle, results);
+    
+    // Check if current node's title contains the partial title (case-insensitive)
+    QString currentTitle = node->book.getJudul().toLower();
+    if (currentTitle.contains(partialTitle)) {
+        results.push_back(node->book);
+    }
+    
+    searchBSTPartialHelper(node->right, partialTitle, results);
+}
+
 std::vector<Book> BookManager::getBSTInOrder()
 {
     std::vector<Book> result;

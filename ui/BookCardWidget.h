@@ -5,32 +5,39 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QFrame>
-#include "Book.h"
+#include "../backend/Book.h" 
 
 class BookCardWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit BookCardWidget(const Book& book, QWidget *parent = nullptr);
+    explicit BookCardWidget(const Book& book, QWidget *parent = nullptr, bool showEditDelete = true);
     
     int getBookId() const { return m_book.getId(); }
+    void updateData(const Book& book);
+    void setEditDeleteVisible(bool visible);
 
 signals:
     void editRequested(int bookId);
     void deleteRequested(int bookId);
     void cardClicked(int bookId);
+    void previewRequested(int bookId);
 
 protected:
     void enterEvent(QEnterEvent* event) override;
     void leaveEvent(QEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    
+    // [BARU] Menangani resize agar overlay selalu penuh
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void setupUI();
     void applyStyles();
+    void refreshContent(); 
     void loadImage();
-    // Helper untuk membuat warna pastel berdasarkan string
     QColor getPastelColor(const QString& text);
 
     Book m_book;

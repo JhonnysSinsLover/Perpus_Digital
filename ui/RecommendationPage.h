@@ -3,17 +3,15 @@
 
 #include <QWidget>
 #include <QLineEdit>
-#include <QTextBrowser>
 #include <QPushButton>
 #include <QFrame>
 #include <QVBoxLayout>
+#include <QGridLayout>
+#include <QLabel>
 #include <QGraphicsDropShadowEffect>
 #include "../backend/DatabaseManager.h"
 #include "Graph.h"
 
-/**
- * @brief Page for book recommendations (Modern UI)
- */
 class RecommendationPage : public QWidget
 {
     Q_OBJECT
@@ -25,21 +23,30 @@ public:
 private slots:
     void onGetRecommendations();
     void onBuildGraph();
+    void onPreviewBook(int bookId);
 
 private:
     void setupUI();
     void createHeaderSection(QVBoxLayout* mainLayout);
     void createContentSection(QVBoxLayout* contentLayout);
     
-    // Helper untuk membuat Container Kartu
+    // Helpers
     QFrame* createCardFrame();
+    void displayRecommendations(const std::vector<Book>& books);
+    void displayRecommendedBooks(const std::vector<Book>& books, int startRow);
+    void clearRecommendationGrid();
 
     Graph* m_genreGraph;
     
+    // UI Elements
     QLineEdit* m_bookTitleInput;
     QPushButton* m_btnGetRec;
     QPushButton* m_btnBuildGraph;
-    QTextBrowser* m_resultsBrowser;
+    
+    // Container untuk Hasil
+    QWidget* m_resultContainer;
+    QGridLayout* m_resultGrid;
+    QLabel* m_lblResultStatus; // Untuk menampilkan pesan "Tidak ditemukan" atau "Hasil untuk..."
 };
 
 #endif // RECOMMENDATIONPAGE_H
