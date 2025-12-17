@@ -1,5 +1,53 @@
 # Perpustakaan Digital - Struktur Proyek
 
+## 🚀 Quick Start untuk Developer
+
+### Prerequisites
+- Qt 6.x atau Qt 5.x (download dari [qt.io](https://www.qt.io/download))
+- CMake 3.16+ 
+- C++17 compiler (MinGW/MSVC/GCC)
+
+### Setup Project
+
+1. **Clone repository**
+```bash
+git clone <repository-url>
+cd Perpustakaan_Digital_2
+```
+
+2. **Setup database** (PowerShell di Windows)
+```powershell
+.\setup_database.ps1
+.\populate_db.ps1
+```
+
+3. **Build dengan CMake**
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build .
+```
+
+4. **Atau buka di Qt Creator**
+- File → Open File or Project
+- Pilih `CMakeLists.txt`
+- Pilih Kit (MinGW 64-bit atau MSVC)
+- Configure → Build → Run
+
+### ⚠️ PENTING: Jangan Commit Build Artifacts!
+File-file ini **OTOMATIS** di-generate dan **TIDAK BOLEH** di-commit:
+- `build/` folder
+- `.qtcreator/` folder
+- `*.user` files
+- `CMakeCache.txt`
+- `*_autogen/` folders
+- Binary files (`.exe`, `.dll`)
+
+Lihat [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) untuk detail lengkap.
+
+---
+
 ## Struktur Direktori
 
 ```

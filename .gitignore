@@ -93,6 +93,7 @@ release/
 .vscode/
 .vs/
 .idea/
+.qtcreator/
 *.swp
 *.swo
 *~
