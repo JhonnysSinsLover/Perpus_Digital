@@ -2,13 +2,14 @@
 #include "AddBookDialog.h"
 #include "BookCardWidget.h"
 #include "BookPreviewDialog.h" // [PENTING] Include dialog preview
+#include "../backend/Searching.h"  // Menggunakan Binary & Linear Search sendiri!
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
 #include <QHeaderView>
 #include <QTimer>
 #include <set>
-#include <algorithm>
+// TIDAK menggunakan <algorithm> karena kita pakai struktur data sendiri!
 
 BooksCollectionPage::BooksCollectionPage(QWidget *parent)
     : QWidget(parent)
@@ -130,9 +131,13 @@ void BooksCollectionPage::createControlSection(QVBoxLayout* containerLayout)
     m_sortCombo = new QComboBox();
     m_sortCombo->addItem("Sort: Judul (A-Z)");
     m_sortCombo->addItem("Sort: Judul (Z-A)");
-    m_sortCombo->addItem("Sort: Tahun (Baru)");
-    m_sortCombo->addItem("Sort: Rating (Tinggi)"); 
-    m_sortCombo->setFixedWidth(170);
+    m_sortCombo->addItem("Sort: Tahun (Terbaru)");
+    m_sortCombo->addItem("Sort: Tahun (Terlama)");
+    m_sortCombo->addItem("Sort: Rating (Tinggi)");
+    m_sortCombo->addItem("Sort: Rating (Rendah)");
+    m_sortCombo->addItem("Sort: Penulis (A-Z)");
+    m_sortCombo->addItem("Sort: Penulis (Z-A)");
+    m_sortCombo->setFixedWidth(200);
     m_sortCombo->setStyleSheet(inputStyle);
     toolbarLayout->addWidget(m_sortCombo);
 
@@ -315,17 +320,40 @@ void BooksCollectionPage::onFilterChanged()
 {
     std::vector<Book> filtered = m_currentBooks;
     
-    // 1. Search Logic
+    // 1. Search Logic - Menggunakan Binary Search dan Linear Search dari struktur data!
     QString search = m_searchBox->text().toLower().trimmed();
     if (!search.isEmpty()) {
-        std::vector<Book> temp;
-        for (const auto& b : filtered) {
-            if (b.getJudul().toLower().contains(search) || 
-                b.getPenulis().toLower().contains(search)) {
-                temp.push_back(b);
+        DatabaseManager& dbMgr = DatabaseManager::instance();
+        BookManager& bookMgr = dbMgr.getBookManager();
+        
+        // BINARY SEARCH untuk exact match title (lebih cepat O(log n))
+        // Tapi harus sort dulu!
+        std::vector<Book> tempForBinary = filtered;
+        bookMgr.setBooks(tempForBinary);
+        bookMgr.quickSortByTitle(true); // Sort dulu
+        Book* exactMatch = bookMgr.binarySearchByTitle(search);
+        
+        if (exactMatch) {
+            // Jika exact match ditemukan
+            filtered = {*exactMatch};
+        } else {
+            // LINEAR SEARCH untuk partial match (judul atau penulis)
+            std::vector<int> indices = Searching::findAll(
+                tempForBinary, 
+                [&search](const Book& b) {
+                    return b.getJudul().toLower().contains(search) || 
+                           b.getPenulis().toLower().contains(search);
+                }
+            );
+            // Convert indices to books
+            filtered.clear();
+            for (int idx : indices) {
+                filtered.push_back(tempForBinary[idx]);
             }
         }
-        filtered = temp;
+        
+        // Restore original books
+        bookMgr.setBooks(dbMgr.getAllBooks());
     }
     
     // 2. Genre Filter
@@ -338,17 +366,33 @@ void BooksCollectionPage::onFilterChanged()
         filtered = temp;
     }
     
-    // 3. Sorting
+    // 3. Sorting menggunakan QuickSort dari struktur data
     int sortIdx = m_sortCombo->currentIndex();
-    std::sort(filtered.begin(), filtered.end(), [sortIdx](const Book& a, const Book& b) {
-        switch(sortIdx) {
-            case 0: return a.getJudul() < b.getJudul(); // A-Z
-            case 1: return a.getJudul() > b.getJudul(); // Z-A
-            case 2: return a.getTahun() > b.getTahun(); // Terbaru
-            case 3: return a.getRating() > b.getRating(); // Rating Tertinggi
-            default: return a.getJudul() < b.getJudul();
-        }
-    });
+    DatabaseManager& dbMgr = DatabaseManager::instance();
+    BookManager& bookMgr = dbMgr.getBookManager();
+    
+    // Simpan filtered ke temporary BookManager
+    std::vector<Book> originalBooks = bookMgr.getAllBooks();
+    bookMgr.setBooks(filtered);
+    
+    // Apply QuickSort - MENGGUNAKAN IMPLEMENTASI SENDIRI, BUKAN std::sort!
+    switch(sortIdx) {
+        case 0: bookMgr.quickSortByTitle(true); break;   // Judul A-Z
+        case 1: bookMgr.quickSortByTitle(false); break;  // Judul Z-A
+        case 2: bookMgr.quickSortByYear(false); break;   // Tahun Terbaru (descending)
+        case 3: bookMgr.quickSortByYear(true); break;    // Tahun Terlama (ascending)
+        case 4: bookMgr.quickSortByRating(false); break; // Rating Tinggi (descending)
+        case 5: bookMgr.quickSortByRating(true); break;  // Rating Rendah (ascending)
+        case 6: bookMgr.quickSortByAuthor(true); break;  // Penulis A-Z
+        case 7: bookMgr.quickSortByAuthor(false); break; // Penulis Z-A
+        default: bookMgr.quickSortByTitle(true); break;  // Default: Judul A-Z
+    }
+    
+    // Ambil hasil sorting
+    filtered = bookMgr.getAllBooks();
+    
+    // Restore original books
+    bookMgr.setBooks(originalBooks);
     
     // 4. Render
     if (m_isCardView) {

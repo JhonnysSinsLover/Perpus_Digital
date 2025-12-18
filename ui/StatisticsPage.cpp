@@ -1,4 +1,5 @@
 #include "StatisticsPage.h"
+#include "../backend/Sorting.h"  // Menggunakan QuickSort sendiri!
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -8,7 +9,6 @@
 #include <QGraphicsDropShadowEffect>
 #include <set>
 #include <map>
-#include <algorithm> // Untuk std::sort
 
 StatisticsPage::StatisticsPage(QWidget *parent)
     : QWidget(parent)
@@ -255,8 +255,8 @@ void StatisticsPage::updateStatistics()
     genreHtml += "<table width='100%' cellspacing='0' cellpadding='4'>";
     
     std::vector<std::pair<QString, int>> genreVec(genreCounts.begin(), genreCounts.end());
-    std::sort(genreVec.begin(), genreVec.end(), 
-              [](const auto& a, const auto& b) { return a.second > b.second; });
+    // Menggunakan QuickSort dari struktur data sendiri!
+    Sorting::quickSort(genreVec, [](const std::pair<QString, int>& a, const std::pair<QString, int>& b) { return a.second > b.second; });
     
     int count = 0;
     for (const auto& [genre, cnt] : genreVec) {
@@ -315,8 +315,8 @@ void StatisticsPage::updateStatistics()
     yearHtml += "<table width='100%' cellspacing='0' cellpadding='5'>";
     
     std::vector<std::pair<int, int>> yearVec(yearCounts.begin(), yearCounts.end());
-    std::sort(yearVec.begin(), yearVec.end(), 
-              [](const auto& a, const auto& b) { return a.first > b.first; });
+    // Menggunakan QuickSort dari struktur data sendiri!
+    Sorting::quickSort(yearVec, [](const std::pair<int, int>& a, const std::pair<int, int>& b) { return a.first > b.first; });
     
     // Tampilkan Grid Horizontal
     yearHtml += "<tr>";
