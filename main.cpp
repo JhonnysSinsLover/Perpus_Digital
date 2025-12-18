@@ -6,8 +6,8 @@
 
 int main(int argc, char *argv[])
 {
-    // High DPI Support
-#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
+    // High DPI Support (Qt 6+ enables this by default)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
 

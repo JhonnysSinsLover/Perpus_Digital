@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <algorithm>
+#include <cmath>
 
 /**
  * @brief Collection of searching algorithms
@@ -94,13 +95,13 @@ namespace Searching
     /**
      * @brief Linear Search with predicate
      * @tparam T Type of elements
+     * @tparam Predicate Predicate function type
      * @param arr Vector to search in
      * @param predicate Function that returns true for matching element
      * @return Index of found element, -1 if not found
      */
-    template<typename T>
-    int linearSearchIf(const std::vector<T>& arr,
-                       std::function<bool(const T&)> predicate)
+    template<typename T, typename Predicate>
+    int linearSearchIf(const std::vector<T>& arr, Predicate predicate)
     {
         for (size_t i = 0; i < arr.size(); i++) {
             if (predicate(arr[i])) {
@@ -113,13 +114,13 @@ namespace Searching
     /**
      * @brief Find all matching elements
      * @tparam T Type of elements
+     * @tparam Predicate Predicate function type
      * @param arr Vector to search in
      * @param predicate Function that returns true for matching elements
      * @return Vector of indices of all matching elements
      */
-    template<typename T>
-    std::vector<int> findAll(const std::vector<T>& arr,
-                             std::function<bool(const T&)> predicate)
+    template<typename T, typename Predicate>
+    std::vector<int> findAll(const std::vector<T>& arr, Predicate predicate)
     {
         std::vector<int> results;
         for (size_t i = 0; i < arr.size(); i++) {

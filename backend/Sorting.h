@@ -15,14 +15,14 @@ namespace Sorting
     /**
      * @brief QuickSort algorithm implementation
      * @tparam T Type of elements to sort
+     * @tparam Compare Comparison function type
      * @param arr Vector to sort
      * @param compare Comparison function
      * @param left Starting index
      * @param right Ending index
      */
-    template<typename T>
-    void quickSort(std::vector<T>& arr, int left, int right,
-                   std::function<bool(const T&, const T&)> compare)
+    template<typename T, typename Compare>
+    void quickSort(std::vector<T>& arr, int left, int right, Compare compare)
     {
         if (left >= right) return;
 
@@ -55,6 +55,20 @@ namespace Sorting
         if (arr.empty()) return;
         quickSort(arr, 0, arr.size() - 1, 
                  [](const T& a, const T& b) { return a < b; });
+    }
+
+    /**
+     * @brief QuickSort with custom comparator (2-parameter convenience version)
+     * @tparam T Type of elements
+     * @tparam Compare Comparison function type
+     * @param arr Vector to sort
+     * @param compare Comparison function
+     */
+    template<typename T, typename Compare>
+    void quickSort(std::vector<T>& arr, Compare compare)
+    {
+        if (arr.empty()) return;
+        quickSort(arr, 0, arr.size() - 1, compare);
     }
 
     /**
@@ -114,29 +128,6 @@ namespace Sorting
                 j--;
             }
             arr[j + 1] = key;
-        }
-    }
-
-    /**
-     * @brief Bubble Sort algorithm (for educational purposes)
-     * @tparam T Type of elements to sort
-     * @param arr Vector to sort
-     * @param compare Comparison function
-     */
-    template<typename T>
-    void bubbleSort(std::vector<T>& arr,
-                    std::function<bool(const T&, const T&)> compare)
-    {
-        size_t n = arr.size();
-        for (size_t i = 0; i < n - 1; i++) {
-            bool swapped = false;
-            for (size_t j = 0; j < n - i - 1; j++) {
-                if (!compare(arr[j], arr[j + 1]) && arr[j] != arr[j + 1]) {
-                    std::swap(arr[j], arr[j + 1]);
-                    swapped = true;
-                }
-            }
-            if (!swapped) break;
         }
     }
 

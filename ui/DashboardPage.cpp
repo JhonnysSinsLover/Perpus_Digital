@@ -221,7 +221,7 @@ void DashboardPage::createRecentBooksTable(QVBoxLayout* mainLayout)
     
     // Header Text & Action
     QHBoxLayout* titleLayout = new QHBoxLayout();
-    QLabel* tableTitle = new QLabel("Buku Terbaru Ditambahkan", tableFrame);
+    QLabel* tableTitle = new QLabel("🏆 Top 5 Buku Rating Tertinggi (Max Heap)", tableFrame);
     tableTitle->setStyleSheet("color: #2B3674; font-size: 18px; font-weight: 700; font-family: 'Segoe UI'; border: none;");
     
     QPushButton* viewAllBtn = new QPushButton("Lihat Semua", tableFrame);
@@ -238,7 +238,7 @@ void DashboardPage::createRecentBooksTable(QVBoxLayout* mainLayout)
     // Table Widget Setup
     m_recentBooksTable = new QTableWidget(this);
     m_recentBooksTable->setColumnCount(6);
-    m_recentBooksTable->setHorizontalHeaderLabels({"Cover", "Judul Buku", "Penulis", "Kategori", "Tahun", "Status"});
+    m_recentBooksTable->setHorizontalHeaderLabels({"Cover", "Judul Buku", "Penulis", "Kategori", "Tahun", "Rating"});
     
     // --- TABLE STYLESHEET ---
     m_recentBooksTable->setStyleSheet(
@@ -313,11 +313,14 @@ void DashboardPage::updateDashboard()
     m_lblTotalGenres->setText(QString::number(genres.size()));
     m_lblAvgRating->setText(QString::number(avgRating, 'f', 1));
     
-    // Update Table Data
+    // Update Table Data - MENGGUNAKAN PRIORITY QUEUE (MAX HEAP) UNTUK TOP 5 BOOKS!
     m_recentBooksTable->setRowCount(0);
+    
+    // Ambil top 5 buku rating tertinggi menggunakan Priority Queue (Max Heap)
+    std::vector<Book> topBooks = dbManager.getBookManager().getTopRatedBooks(5);
+    
     int count = 0;
-    // Ambil maksimal 5 buku terbaru
-    for (auto it = books.rbegin(); it != books.rend() && count < 5; ++it, ++count) {
+    for (const Book& book : topBooks) {
         int row = m_recentBooksTable->rowCount();
         m_recentBooksTable->insertRow(row);
         m_recentBooksTable->setRowHeight(row, 70); // Tinggi baris nyaman
@@ -329,40 +332,42 @@ void DashboardPage::updateDashboard()
         m_recentBooksTable->setCellWidget(row, 0, coverLabel);
         
         // 2. Title
-        QTableWidgetItem* titleItem = new QTableWidgetItem(it->getJudul());
+        QTableWidgetItem* titleItem = new QTableWidgetItem(book.getJudul());
         titleItem->setFont(QFont("Segoe UI", 10, QFont::Bold));
         m_recentBooksTable->setItem(row, 1, titleItem);
         
         // 3. Author
-        QTableWidgetItem* authorItem = new QTableWidgetItem(it->getPenulis());
+        QTableWidgetItem* authorItem = new QTableWidgetItem(book.getPenulis());
         authorItem->setFont(QFont("Segoe UI", 10));
         m_recentBooksTable->setItem(row, 2, authorItem);
         
         // 4. Genre
-        QTableWidgetItem* genreItem = new QTableWidgetItem(it->getGenre().join(", "));
+        QTableWidgetItem* genreItem = new QTableWidgetItem(book.getGenre().join(", "));
         genreItem->setFont(QFont("Segoe UI", 10));
         m_recentBooksTable->setItem(row, 3, genreItem);
         
         // 5. Year
-        QTableWidgetItem* yearItem = new QTableWidgetItem(QString::number(it->getTahun()));
+        QTableWidgetItem* yearItem = new QTableWidgetItem(QString::number(book.getTahun()));
         yearItem->setTextAlignment(Qt::AlignCenter);
         m_recentBooksTable->setItem(row, 4, yearItem);
         
-        // 6. Status (Pill Badge Style)
+        // 6. Status (Pill Badge Style) dengan rating
         QWidget* statusWidget = new QWidget();
         QHBoxLayout* statusLayout = new QHBoxLayout(statusWidget);
         statusLayout->setContentsMargins(0,0,0,0);
         statusLayout->setAlignment(Qt::AlignCenter);
         
-        QLabel* statusLabel = new QLabel("Tersedia");
+        QLabel* statusLabel = new QLabel(QString("⭐ %1").arg(book.getRating()));
         statusLabel->setAlignment(Qt::AlignCenter);
         statusLabel->setFixedSize(90, 28);
         statusLabel->setStyleSheet(
-            "background-color: #05CD99; color: white; "
+            "background-color: #FFB547; color: white; "
             "border-radius: 14px; font-weight: bold; font-size: 11px;"
         );
         statusLayout->addWidget(statusLabel);
         
         m_recentBooksTable->setCellWidget(row, 5, statusWidget);
+        
+        count++;
     }
 }

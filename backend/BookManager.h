@@ -48,6 +48,12 @@ public:
     std::vector<Book> getAllBooks() const { return m_books; }
 
     /**
+     * @brief Set books collection (untuk operasi sementara)
+     * @param books Vector of books to set
+     */
+    void setBooks(const std::vector<Book>& books) { m_books = books; }
+
+    /**
      * @brief Get book by ID
      * @param id Book ID
      * @return Pointer to book if found, nullptr otherwise
