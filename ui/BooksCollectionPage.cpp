@@ -320,31 +320,37 @@ void BooksCollectionPage::onFilterChanged()
 {
     std::vector<Book> filtered = m_currentBooks;
     
-    // 1. Search Logic - Menggunakan Binary Search dan Linear Search dari struktur data!
-    QString search = m_searchBox->text().toLower().trimmed();
+    // 1. Search Logic - Sesuai Flowchart: Binary Search untuk title, Linear Search untuk lainnya
+    QString search = m_searchBox->text().trimmed();
+    
+    // Check if query empty (tidak perlu warning, langsung tampilkan semua)
     if (!search.isEmpty()) {
         DatabaseManager& dbMgr = DatabaseManager::instance();
         BookManager& bookMgr = dbMgr.getBookManager();
+        QString searchLower = search.toLower();
         
-        // BINARY SEARCH untuk exact match title (lebih cepat O(log n))
-        // Tapi harus sort dulu!
+        // Cek apakah ini pencarian by Title (exact atau partial title match)
+        // Binary Search O(log n) untuk title search (lebih efisien)
         std::vector<Book> tempForBinary = filtered;
         bookMgr.setBooks(tempForBinary);
-        bookMgr.quickSortByTitle(true); // Sort dulu
-        Book* exactMatch = bookMgr.binarySearchByTitle(search);
+        bookMgr.quickSortByTitle(true); // Sort dulu untuk binary search
+        
+        // Coba binary search untuk exact title match dulu
+        Book* exactMatch = bookMgr.binarySearchByTitle(searchLower);
         
         if (exactMatch) {
-            // Jika exact match ditemukan
+            // Binary Search: Found exact title match
             filtered = {*exactMatch};
         } else {
-            // LINEAR SEARCH untuk partial match (judul atau penulis)
+            // Linear Search O(n) untuk partial match (judul atau penulis)
             std::vector<int> indices = Searching::findAll(
                 tempForBinary, 
-                [&search](const Book& b) {
-                    return b.getJudul().toLower().contains(search) || 
-                           b.getPenulis().toLower().contains(search);
+                [&searchLower](const Book& b) {
+                    return b.getJudul().toLower().contains(searchLower) || 
+                           b.getPenulis().toLower().contains(searchLower);
                 }
             );
+            
             // Convert indices to books
             filtered.clear();
             for (int idx : indices) {
