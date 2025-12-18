@@ -1,14 +1,16 @@
 #include "BookManager.h"
+#include "Sorting.h"
+#include "Searching.h"
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QDebug>
 #include <QDateTime>
-#include <algorithm>
 #include <set>
+#include <algorithm> // Only for std::swap and std::remove_if
 
 BookManager::BookManager()
-    : m_bstRoot(nullptr)
+    : m_bstRoot(nullptr), m_graph()
 {
 }
 
@@ -82,6 +84,12 @@ Book* BookManager::getBookById(int id)
 void BookManager::addBook(const Book& book)
 {
     m_books.push_back(book);
+    
+    // Auto-update graph when book is added
+    // This ensures graph is always in sync with book collection
+    if (!m_books.empty()) {
+        buildGraph();
+    }
 }
 
 bool BookManager::removeBook(int id)
@@ -115,13 +123,14 @@ bool BookManager::updateBook(const Book& book)
 }
 
 // ============================================================================
-// SORTING ALGORITHMS - QuickSort
+// SORTING ALGORITHMS - Using Sorting.h Library (QuickSort ONLY)
 // ============================================================================
 
 void BookManager::quickSortByTitle(bool ascending)
 {
     if (m_books.empty()) return;
 
+    // Use Sorting::quickSort from Sorting.h library
     auto compare = ascending
         ? [](const Book& a, const Book& b) { 
             return a.getJudul().toLower() < b.getJudul().toLower(); 
@@ -137,6 +146,7 @@ void BookManager::quickSortByYear(bool ascending)
 {
     if (m_books.empty()) return;
 
+    // Use Sorting::quickSort from Sorting.h library
     auto compare = ascending
         ? [](const Book& a, const Book& b) { return a.getTahun() < b.getTahun(); }
         : [](const Book& a, const Book& b) { return a.getTahun() > b.getTahun(); };
@@ -148,6 +158,7 @@ void BookManager::quickSortByRating(bool ascending)
 {
     if (m_books.empty()) return;
 
+    // Use Sorting::quickSort from Sorting.h library
     auto compare = ascending
         ? [](const Book& a, const Book& b) { return a.getRating() < b.getRating(); }
         : [](const Book& a, const Book& b) { return a.getRating() > b.getRating(); };
@@ -159,6 +170,7 @@ void BookManager::quickSortByAuthor(bool ascending)
 {
     if (m_books.empty()) return;
 
+    // Use Sorting::quickSort from Sorting.h library
     auto compare = ascending
         ? [](const Book& a, const Book& b) { 
             return a.getPenulis().toLower() < b.getPenulis().toLower(); 
@@ -171,80 +183,92 @@ void BookManager::quickSortByAuthor(bool ascending)
 }
 
 // ============================================================================
-// SEARCHING ALGORITHMS
+// SEARCHING ALGORITHMS - Using Searching.h Library
 // ============================================================================
 
 Book* BookManager::binarySearchByTitle(const QString& title)
 {
     if (m_books.empty()) return nullptr;
 
-    // Use Searching::binarySearchByKey from library
+    // Use Searching::binarySearch from Searching.h library
     QString searchKey = title.toLower();
-    std::function<QString(const Book&)> getKey = [](const Book& book) -> QString { 
-        return book.getJudul().toLower(); 
-    };
     
-    int index = Searching::binarySearchByKey(m_books, searchKey, getKey);
+    int index = Searching::binarySearch(
+        m_books,
+        [&searchKey](const Book& book) { 
+            return book.getJudul().toLower() == searchKey; 
+        },
+        [](const Book& a, const Book& b) {
+            return a.getJudul().toLower() < b.getJudul().toLower();
+        }
+    );
 
     return (index != -1) ? &m_books[index] : nullptr;
 }
 
 std::vector<Book> BookManager::searchByGenre(const QString& genre) const
 {
-    std::vector<Book> result;
-    for (const Book& book : m_books) {
-        if (book.hasGenre(genre)) {
-            result.push_back(book);
+    // Use Searching::findAll from Searching.h library (Linear Search)
+    // NO manual for loop!
+    std::vector<int> indices = Searching::findAll(
+        m_books,
+        [&genre](const Book& book) {
+            return book.hasGenre(genre);
         }
+    );
+    
+    // Build result vector from indices
+    std::vector<Book> result;
+    result.reserve(indices.size());
+    for (int idx : indices) {
+        result.push_back(m_books[idx]);
     }
+    
     return result;
 }
 
 std::vector<Book> BookManager::searchByAuthor(const QString& author) const
 {
-    std::vector<Book> result;
+    // Use Searching::findAll from Searching.h library (Linear Search)
+    // NO manual for loop!
     QString authorLower = author.toLower();
     
-    for (const Book& book : m_books) {
-        if (book.getPenulis().toLower().contains(authorLower)) {
-            result.push_back(book);
+    std::vector<int> indices = Searching::findAll(
+        m_books,
+        [&authorLower](const Book& book) {
+            return book.getPenulis().toLower().contains(authorLower);
         }
+    );
+    
+    // Build result vector from indices
+    std::vector<Book> result;
+    result.reserve(indices.size());
+    for (int idx : indices) {
+        result.push_back(m_books[idx]);
     }
+    
     return result;
 }
 
 std::vector<Book> BookManager::searchByYearRange(int minYear, int maxYear) const
 {
+    // Use Searching::findAll from Searching.h library (Linear Search)
+    // NO manual for loop!
+    std::vector<int> indices = Searching::findAll(
+        m_books,
+        [minYear, maxYear](const Book& book) {
+            int year = book.getTahun();
+            return year >= minYear && year <= maxYear;
+        }
+    );
+    
+    // Build result vector from indices
     std::vector<Book> result;
-    for (const Book& book : m_books) {
-        int year = book.getTahun();
-        if (year >= minYear && year <= maxYear) {
-            result.push_back(book);
-        }
-    }
-    return result;
-}
-
-std::vector<QString> BookManager::getAllGenres() const
-{
-    std::set<QString> genreSet;
-    
-    for (const Book& book : m_books) {
-        QStringList genres = book.getGenre();
-        for (const QString& genre : genres) {
-            genreSet.insert(genre);
-        }
+    result.reserve(indices.size());
+    for (int idx : indices) {
+        result.push_back(m_books[idx]);
     }
     
-    return std::vector<QString>(genreSet.begin(), genreSet.end());
-}
-
-// ============================================================================
-// STACK - Undo Deletion Feature Implementation
-// ============================================================================
-
-bool BookManager::undoDelete()
-{
     if (m_deletedBooks.empty()) {
         qDebug() << "Undo stack is empty";
         return false;
@@ -327,19 +351,25 @@ std::vector<Book> BookManager::getTopRatedBooks(int topN)
     };
     
     std::priority_queue<Book, std::vector<Book>, decltype(compareRating)> maxHeap(compareRating);
+    // Use Searching::findAll for filtering (NO manual for loop)
+    std::vector<int> indices = Searching::findAll(
+        m_books,
+        [minRating](const Book& book) {
+            return book.getRating() >= minRating;
+        }
+    );
     
-    // Add all books to priority queue
-    for (const Book& book : m_books) {
-        maxHeap.push(book);
+    // Build result vector
+    std::vector<Book> popularBooks;
+    popularBooks.reserve(indices.size());
+    for (int idx : indices) {
+        popularBooks.push_back(m_books[idx]);
     }
     
-    // Extract top N books
-    std::vector<Book> topBooks;
-    for (int i = 0; i < topN && !maxHeap.empty(); i++) {
-        topBooks.push_back(maxHeap.top());
-        maxHeap.pop();
-    }
-    
+    // Sort by rating (descending) using Sorting::quickSort
+    Sorting::quickSort(popularBooks, [](const Book& a, const Book& b) {
+        return a.getRating() > b.getRating();
+
     return topBooks;
 }
 
@@ -470,4 +500,36 @@ void BookManager::inOrderTraversal(std::shared_ptr<BSTNode> node, std::vector<Bo
     inOrderTraversal(node->left, result);
     result.push_back(node->book);
     inOrderTraversal(node->right, result);
+}
+
+// ============================================================================
+// GRAPH - Book Recommendation System Implementation
+// ============================================================================
+
+void BookManager::buildGraph()
+{
+    // Build graph from current books collection
+    // Graph automatically creates edges based on shared genres
+    m_graph.buildGraph(m_books);
+    
+    qDebug() << "Built graph with" << m_books.size() << "books";
+}
+
+std::vector<Book> BookManager::getRecommendations(const QString& genre, int maxRecommendations)
+{
+    if (m_books.empty()) {
+        qDebug() << "Cannot get recommendations: Book collection is empty";
+        return std::vector<Book>();
+    }
+    
+    // Ensure graph is built
+    if (!hasGraph()) {
+        buildGraph();
+    }
+    
+    // Use Graph's BFS-based recommendation system
+    std::vector<Book> recommendations = m_graph.getRecommendation(genre, maxRecommendations);
+    
+    qDebug() << "Found" << recommendations.size() << "recommendations for genre:" << genre;
+    return recommendations;
 }

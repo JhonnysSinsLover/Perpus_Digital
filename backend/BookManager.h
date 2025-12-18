@@ -2,6 +2,9 @@
 #define BOOKMANAGER_H
 
 #include "Book.h"
+#include "Graph.h"
+#include "Sorting.h"
+#include "Searching.h"
 #include <vector>
 #include <stack>
 #include <queue>
@@ -305,6 +308,36 @@ public:
      */
     void clearBST() { m_bstRoot = nullptr; }
 
+    // ============================================================================
+    // GRAPH - Book Recommendation System
+    // ============================================================================
+    
+    /**
+     * @brief Build graph from current books collection
+     * Creates edges between books based on shared genres
+     */
+    void buildGraph();
+    
+    /**
+     * @brief Get book recommendations based on genre using BFS
+     * @param genre Genre to find recommendations for
+     * @param maxRecommendations Maximum number of recommendations to return (default 5)
+     * @return Vector of recommended books
+     */
+    std::vector<Book> getRecommendations(const QString& genre, int maxRecommendations = 5);
+    
+    /**
+     * @brief Get direct access to graph object (for advanced usage)
+     * @return Reference to the graph
+     */
+    Graph& getGraph() { return m_graph; }
+    
+    /**
+     * @brief Check if graph is built
+     * @return true if graph has nodes (genres)
+     */
+    bool hasGraph() const { return m_graph.getNodeCount() > 0; }
+
 private:
     std::vector<Book> m_books;  ///< Collection of books
     
@@ -316,36 +349,9 @@ private:
     
     // Binary Search Tree root
     std::shared_ptr<BSTNode> m_bstRoot;
-
-    /**
-     * @brief QuickSort implementation
-     * @param left Left index
-     * @param right Right index
-     * @param compare Comparison function
-     */
-    void quickSort(int left, int right, 
-                   std::function<bool(const Book&, const Book&)> compare);
-
-    /**
-     * @brief Partition for QuickSort
-     * @param left Left index
-     * @param right Right index
-     * @param compare Comparison function
-     * @return Partition index
-     */
-    int partition(int left, int right,
-                  std::function<bool(const Book&, const Book&)> compare);
-
-    /**
-     * @brief Binary search implementation
-     * @param key Search key
-     * @param left Left index
-     * @param right Right index
-     * @param getKey Function to extract key from book
-     * @return Index of found book, -1 if not found
-     */
-    int binarySearchImpl(const QString& key, int left, int right,
-                         std::function<QString(const Book&)> getKey) const;
+    
+    // Graph for book recommendations
+    Graph m_graph;
 
     // BST helper functions
     /**
